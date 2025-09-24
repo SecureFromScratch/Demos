@@ -1,0 +1,27 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Item {
+  id        Int      @id @default(autoincrement())
+  name      String
+  category  String
+  price     Float
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  imageUrl  String?
+    
+  orders    Order[]
+    
+  fileName  String?
+  filePath  String?   // server-side stored name
+  mimeType  String?
+  fileSize  Int?
+}
+
