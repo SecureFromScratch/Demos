@@ -5,6 +5,9 @@ import morgan from "morgan";
 import routes from "./routes/index.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import internalRouter from "./routes/internal.routes.js";
+import ordersRouter from "./routes/orders.routes.js";
+ 
+ 
 
 
 
@@ -28,6 +31,6 @@ app.use((err, req, res, next) => {
 });
 
 app.use("/internal", internalRouter);
-
+//app.use("/orders", ordersRouter);
 
 export default app;

@@ -10,5 +10,14 @@ async function main() {
     ],
     skipDuplicates: true
   });
+
+  await prisma.coupon.upsert({
+  where: { code: 'SAVE10' },
+  update: {},                       // nothing to update on re-run
+  create: { code: 'SAVE10', active: true },
+});
+
 }
 main().finally(() => prisma.$disconnect());
+
+

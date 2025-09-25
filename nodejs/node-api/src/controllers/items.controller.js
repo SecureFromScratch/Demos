@@ -72,3 +72,17 @@ export async function createWithFile(req, res) {
   return res.status(201).json(item);
 }
 
+import { redeemCouponVuln, redeemCouponSafe } from "../services/orders.service.js";
+
+export async function redeemVuln(req, res) {
+  const { userId, code } = req.couponReq;
+  const r = await redeemCouponVuln({ userId, code });
+  res.status(201).json({ id: r.id, userId, couponId: r.couponId, createdAt: r.createdAt, mode: "vuln" });
+}
+
+export async function redeemSafe(req, res) {
+  const { userId, code } = req.couponReq;
+  const r = await redeemCouponSafe({ userId, code });
+  res.status(201).json({ id: r.id, userId, couponId: r.couponId, createdAt: r.createdAt, mode: "safe" });
+}
+
