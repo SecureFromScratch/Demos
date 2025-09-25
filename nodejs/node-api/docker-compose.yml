@@ -18,5 +18,24 @@ services:
       timeout: 3s
       retries: 20
 
+  api:
+    build: .
+    container_name: nodeapi-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${PGUSER:-postgres}:${PGPASSWORD:-postgres}@db:5432/${PGDATABASE:-nodeapi}?schema=public
+      UPLOAD_DIR: /var/app/uploads/items
+    volumes:
+      - uploads:/var/app/uploads
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["api"]   # <- optional, not started by default
+
 volumes:
   pgdata:
+  uploads:
