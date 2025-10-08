@@ -12,7 +12,7 @@ public class UsersController : ControllerBase
    private readonly AppDbContext _db;
    public UsersController(AppDbContext db) => _db = db;
 
-   // Intentionally vulnerable: binds straight to User entity and marks all fields Modified
+   
    [HttpPatch("{id:int}")]
    public async Task<IActionResult> Patch(int id, [FromBody] User dto)
    {
@@ -20,7 +20,7 @@ public class UsersController : ControllerBase
       if (dto.Id != id) return BadRequest("ID mismatch.");
 
       _db.Attach(dto);
-      _db.Entry(dto).State = EntityState.Modified; // <-- vulnerable line
+      _db.Entry(dto).State = EntityState.Modified; 
 
       await _db.SaveChangesAsync();
       return Ok(dto);
