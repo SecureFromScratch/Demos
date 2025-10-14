@@ -1,13 +1,5 @@
 // Program.cs
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Logging;
+using SecureDownloads;   
 
 
 
@@ -21,6 +13,10 @@ builder.Services.AddAuthorization(options =>
 {
    options.AddPolicy("CanDownloadFiles", p => p.RequireAuthenticatedUser());
 });
+
+
+builder.Services.AddSecureDownloads(builder.Configuration);
+builder.Services.AddSingleton<IFileDownloadService, FileDownloadService>();
 
 builder.Services.AddControllers();
 
