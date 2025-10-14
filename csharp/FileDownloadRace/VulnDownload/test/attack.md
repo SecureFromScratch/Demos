@@ -45,13 +45,6 @@ curl -sS -D - "http://localhost:5007/api/files/download/target.txt" -o -
 
 ## 5) Cleanup when done
 
-```bash
-# stop swapper
-pkill -f swap_contents.sh || true
-# remove test outputs
-rm -f /tmp/result_*.txt /tmp/swapper.log /tmp/swap_contents.sh || true
-# restore safe file
-cp -f /tmp/secure-downloads-demo/target-real /tmp/secure-downloads-demo/target.txt
-ls -la /tmp/secure-downloads-demo
-```
+run the test/clean.sh script
+
 
