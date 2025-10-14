@@ -15,7 +15,9 @@ In real-world scenarios this can happen in different ways. For example, an attac
 might craft a ZIP upload that creates symlinks or performs path traversal.
 
 
-## 1) Create the storage and test files using the test/create_files.sh script
+## 1) Create the storage and test files 
+
+using the test/create_files.sh script
 
 ---
 ## 2) Check if you can use the api to download a file
@@ -25,8 +27,9 @@ curl -v http://localhost:5007/api/files/download/target.txt -o test/output/targe
 ```
 
 
+## 2) Run the swapper script 
 
-## 2) Run the swapper script using the test/swap_contents.sh script
+using the test/swap_contents.sh script
 
 Changing it once can be enough if the privileged reader 
 opens the path at that exact moment, 
@@ -43,7 +46,7 @@ curl -sS -D - "http://localhost:5007/api/files/download/target.txt" -o -
 
 ---
 
-## 5) Cleanup when done
+## 4) Cleanup when done
 
 run the test/clean.sh script
 
