@@ -1,0 +1,25 @@
+# Rule: missing-file-type-validation
+rules:
+  - id: csharp-file-upload-missing-type-validation
+    message: |
+      Missing file type validation (CWE-434). The file is saved without checking the 
+      extension or magic bytes. This enables Unrestricted File Upload and potential 
+      Remote Code Execution (RCE) via web shells.
+    languages:
+      - csharp
+    severity: ERROR
+    # Find the sink: the file copy operation
+    patterns:
+      - pattern: |
+          await $FILE.CopyToAsync($STREAM);
+      # The important negative patterns:
+      # 1. Exclude if the code gets the extension and checks it against a list (basic defense)
+      - pattern-not-inside: |
+          var $EXT = System.IO.Path.GetExtension($FILENAME);
+          if ($WHITELIST.Contains($EXT)) { ... }
+      # 2. Exclude if the code calls a method like IsValidFileSignature (deep defense)
+      - pattern-not-inside: |
+          if (IsValidFileSignature(..., ...)) { ... }
+      # 3. Exclude if the code checks ContentType (weak defense, but still a check)
+      - pattern-not-inside: |
+          if ($FILE.ContentType == $TYPE) { ... }

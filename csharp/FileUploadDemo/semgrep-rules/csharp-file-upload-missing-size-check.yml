@@ -1,0 +1,35 @@
+rules:
+  - id: csharp-file-upload-missing-size-check
+    message: |
+      Missing file size validation (CWE-400). The uploaded file's length ($FILE.Length) is used 
+      without checking against a maximum limit. This can lead to a Denial of Service (DoS).
+    languages:
+      - csharp
+    severity: WARNING
+    
+    # Context: Ensure we are only looking inside controller actions that take an IFormFile
+    pattern-inside: |
+      public async Task<IActionResult> $METHOD(IFormFile $FILE) { ... }
+      
+    patterns:
+      # 1. Find the use of the file length property
+      - pattern: $FILE.Length
+      
+      # 2. Exclude common comparison checks in an if-statement (FIXED PATTERNS)
+      # We explicitly list common operators to bypass the issue with $OP in C# conditional patterns
+      - pattern-not-inside: |
+          if ($FILE.Length > $SIZE) { ... }
+      - pattern-not-inside: |
+          if ($FILE.Length < $SIZE) { ... }
+      - pattern-not-inside: |
+          if ($FILE.Length >= $SIZE) { ... }
+      - pattern-not-inside: |
+          if ($FILE.Length <= $SIZE) { ... }
+          
+      # 3. Exclude assignment/comparison chain (Less likely to cause a parse error)
+      - pattern-not-inside: |
+          $VAR = $FILE.Length;
+          if ($VAR > $SIZE) { ... }
+          
+      # 4. Exclude immediate assignment to a boolean
+      - pattern-not: $VAR = $FILE.Length > $SIZE;
