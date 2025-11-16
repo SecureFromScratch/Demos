@@ -16,7 +16,7 @@
 ## Overview
 
 This tutorial shows you how to build a secure user registration system that:
-- ✅ **Never stores plain-text passwords** (uses BCrypt hashing)
+- ✅ **Never stores plain-text passwords** (uses BCrypt / Argon)
 - ✅ **Has no hard-coded credentials** in the source code
 - ✅ **Solves the "first user problem"** elegantly
 - ✅ **Supports role-based access** (Admin and User roles)
