@@ -16,7 +16,7 @@
 ## Overview
 
 This tutorial shows you how to build a secure user registration system that:
-- ✅ **Never stores plain-text passwords** (uses BCrypt hashing)
+- ✅ **Never stores plain-text passwords** (uses Argon/BCrypt hashing)
 - ✅ **Has no hard-coded credentials** in the source code
 - ✅ **Solves the "first user problem"** elegantly
 - ✅ **Supports role-based access** (Admin and User roles)
@@ -446,7 +446,10 @@ public class WebSecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Argon2 is the modern standard and winner of the Password Hashing Competition
+        // It's more secure than BCrypt against GPU/ASIC attacks
+        // OWASP recommends Argon2id as the first choice for password hashing
+        return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     }
 }
 ```
@@ -465,6 +468,66 @@ public class WebSecurityConfig {
 /admin/**          → ADMIN only
 Everything else    → Authenticated users
 ```
+
+**Why Argon2 over BCrypt?**
+- ✅ **Winner of Password Hashing Competition (2015)**
+- ✅ **Resistant to GPU/ASIC attacks** (uses memory-hard algorithm)
+- ✅ **Configurable memory, time, and parallelism costs**
+- ✅ **Recommended by OWASP** as first choice
+- ✅ **Newer and more secure** than BCrypt (2013 vs 1999)
+
+**Hash comparison:**
+```
+BCrypt:  $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+Argon2:  $argon2id$v=19$m=65536,t=3,p=1$abc123...$hash_output_here...
+          └──┬───┘ └──┬─┘ └────────┬──────────┘ └─┬─┘ └──────┬──────┘
+          variant  version  parameters(m,t,p) salt    hash
+```
+
+### Password Hashing Algorithm Comparison
+
+| Algorithm | Released | Security Level | Speed | Memory Usage | OWASP Rank |
+|-----------|----------|----------------|-------|--------------|------------|
+| **Argon2id** | 2015 | 🟢 Excellent | Configurable | High (64MB+) | #1 ⭐ |
+| Argon2i | 2015 | 🟢 Excellent | Configurable | High (64MB+) | #1 ⭐ |
+| Argon2d | 2015 | 🟡 Good* | Configurable | High (64MB+) | - |
+| scrypt | 2009 | 🟢 Very Good | Slow | Medium | #2 |
+| BCrypt | 1999 | 🟡 Good | Slow | Low | #3 |
+| PBKDF2 | 2000 | 🟡 Acceptable | Fast | Low | #4 |
+| MD5 | 1991 | 🔴 **BROKEN** | Very Fast | Minimal | ❌ Never use |
+| SHA-1 | 1995 | 🔴 **WEAK** | Very Fast | Minimal | ❌ Never use |
+
+*Argon2d vulnerable to side-channel attacks; use Argon2id instead
+
+**Why Argon2id wins:**
+1. **Memory-hard**: Requires significant RAM, making GPU/ASIC attacks expensive
+2. **Time-hard**: Configurable computational cost
+3. **Side-channel resistant**: Combines Argon2i (data-independent) and Argon2d (data-dependent)
+4. **Proven**: Winner of Password Hashing Competition, peer-reviewed
+5. **Future-proof**: Parameters can be adjusted as hardware improves
+
+**Argon2 Parameters Explained:**
+```java
+Argon2PasswordEncoder(
+    16,      // saltLength (bytes) - random salt for each password
+    32,      // hashLength (bytes) - output hash size
+    1,       // parallelism - number of threads
+    65536,   // memory (KB) - 64 MB RAM required
+    3        // iterations - time cost
+)
+```
+
+**Security Trade-offs:**
+- Higher memory → More expensive attacks, slower hashing
+- Higher iterations → Slower hashing, better security
+- Higher parallelism → Can utilize multiple cores
+
+**Recommended settings:**
+- **Default** (what we use): `m=64MB, t=3, p=1` - Good balance
+- **High security**: `m=256MB, t=5, p=4` - Very secure, slower
+- **Low-resource**: `m=16MB, t=2, p=1` - Minimum acceptable
+
+---
 
 ---
 
@@ -566,7 +629,7 @@ Everything else    → Authenticated users
    ↓
 6. UserService:
    - Checks isFirstUser() again (security)
-   - Hashes password: "SecureAdmin2024!" → BCrypt hash
+   - Hashes password: "SecureAdmin2024!" → Argon2 hash
    - Creates User with roles="ADMIN,USER"
    - Saves to database
    ↓
@@ -612,8 +675,8 @@ Everything else    → Authenticated users
    ↓
 5. Spring Security compares passwords:
    - User input: "SecureAdmin2024!"
-   - Database: "$2a$10$..."
-   - BCrypt checks if they match
+   - Database: "$argon2id$v=19$m=65536,t=3,p=1$..."
+   - Argon2 verifies if they match
    ↓
 6. If match:
    - Create authentication token
@@ -700,12 +763,12 @@ SELECT * FROM users;
 
 **You should see:**
 ```
-ID | USERNAME | PASSWORD                                           | ROLES      | ENABLED
-1  | admin    | $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68... | ADMIN,USER | true
-2  | user1    | $2a$10$XYZ...                                          | USER       | true
+ID | USERNAME | PASSWORD                                                    | ROLES      | ENABLED
+1  | admin    | $argon2id$v=19$m=65536,t=3,p=1$abc123...$hash_output_here... | ADMIN,USER | true
+2  | user1    | $argon2id$v=19$m=65536,t=3,p=1$xyz789...$another_hash...    | USER       | true
 ```
 
-**Notice:** Passwords are hashed! 🔒
+**Notice:** Passwords are hashed with Argon2! 🔒
 
 ---
 
@@ -713,10 +776,12 @@ ID | USERNAME | PASSWORD                                           | ROLES      
 
 ### ✅ What We Implemented
 
-1. **BCrypt Password Hashing**
-   - Slow by design (protects against brute force)
-   - Includes salt automatically
-   - Industry standard
+1. **Argon2 Password Hashing** (Industry Best Practice)
+   - Winner of Password Hashing Competition (2015)
+   - Memory-hard algorithm (resistant to GPU/ASIC attacks)
+   - OWASP's first choice recommendation
+   - Configurable security parameters
+   - Superior to BCrypt, scrypt, and PBKDF2
 
 2. **No Hard-Coded Credentials**
    - No passwords in source code
@@ -845,35 +910,108 @@ Update `register.html` to show password requirements:
 ```
 
 #### 3. Account Lockout
-```java
-private int failedAttempts = 0;
-private static final int MAX_ATTEMPTS = 5;
+#### 3. Account Lockout After Failed Login Attempts
 
-public void lockAccountIfNeeded(User user) {
-    if (user.getFailedAttempts() >= MAX_ATTEMPTS) {
-        user.setEnabled(false);
-        userRepository.save(user);
+Add to `User.java`:
+```java
+@Column(nullable = false)
+private int failedAttempts = 0;
+
+@Column
+private LocalDateTime lockTime;
+
+public int getFailedAttempts() { return failedAttempts; }
+public void setFailedAttempts(int failedAttempts) { this.failedAttempts = failedAttempts; }
+
+public LocalDateTime getLockTime() { return lockTime; }
+public void setLockTime(LocalDateTime lockTime) { this.lockTime = lockTime; }
+```
+
+Create `LoginAttemptService.java`:
+```java
+@Service
+public class LoginAttemptService {
+    private static final int MAX_ATTEMPTS = 5;
+    private static final long LOCK_TIME_DURATION = 15; // minutes
+
+    @Autowired
+    private UserRepository userRepository;
+
+    public void loginSucceeded(String username) {
+        userRepository.findByUsername(username).ifPresent(user -> {
+            user.setFailedAttempts(0);
+            user.setLockTime(null);
+            user.setEnabled(true);
+            userRepository.save(user);
+        });
+    }
+
+    public void loginFailed(String username) {
+        userRepository.findByUsername(username).ifPresent(user -> {
+            user.setFailedAttempts(user.getFailedAttempts() + 1);
+            
+            if (user.getFailedAttempts() >= MAX_ATTEMPTS) {
+                user.setEnabled(false);
+                user.setLockTime(LocalDateTime.now());
+            }
+            
+            userRepository.save(user);
+        });
+    }
+
+    public boolean isAccountLocked(String username) {
+        return userRepository.findByUsername(username)
+            .map(user -> {
+                if (!user.isEnabled() && user.getLockTime() != null) {
+                    LocalDateTime unlockTime = user.getLockTime().plusMinutes(LOCK_TIME_DURATION);
+                    
+                    if (LocalDateTime.now().isAfter(unlockTime)) {
+                        // Unlock account automatically after lock duration
+                        user.setEnabled(true);
+                        user.setFailedAttempts(0);
+                        user.setLockTime(null);
+                        userRepository.save(user);
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            })
+            .orElse(false);
     }
 }
 ```
 
-3. **Email Verification**
+#### 4. Email Verification
+#### 4. Email Verification (Optional)
 ```java
 @Column(nullable = false)
 private boolean emailVerified = false;
 
+@Column
 private String verificationToken;
 ```
 
-4. **HTTPS in Production**
+#### 5. HTTPS in Production (MANDATORY)
+#### 5. HTTPS in Production (MANDATORY)
+
+**Never send passwords over plain HTTP in production!**
+
 ```properties
 # application-prod.properties
 server.ssl.enabled=true
 server.ssl.key-store=classpath:keystore.p12
-server.ssl.key-store-password=yourpassword
+server.ssl.key-store-password=${SSL_KEYSTORE_PASSWORD}
+server.ssl.key-store-type=PKCS12
 ```
 
-5. **CSRF Protection** (already enabled by default)
+Generate SSL certificate:
+```bash
+keytool -genkeypair -alias myapp -keyalg RSA -keysize 2048 \
+  -storetype PKCS12 -keystore keystore.p12 -validity 3650
+```
+
+#### 6. CSRF Protection
 ```java
 // Already enabled in Spring Security!
 // Protects against Cross-Site Request Forgery
@@ -951,8 +1089,11 @@ user.setPassword(passwordEncoder.encode(rawPassword));
 
 2. **Using wrong PasswordEncoder**
 ```java
-// Make sure CustomUserDetailsService uses the same encoder
-// Spring Security will auto-inject the bean
+// Make sure you're using Argon2, not BCrypt
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+}
 ```
 
 3. **User not enabled**
