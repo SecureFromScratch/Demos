@@ -170,8 +170,8 @@ public class TaskService {
       return repo.save(task);
    }
 
-   public void delete(Long id) {
-      repo.deleteById(id);
+   public void delete(Task task) {
+      repo.delete(task);
    }
 }
 
@@ -238,7 +238,8 @@ public class TaskController {
 
    @PostMapping("/{id}/delete")
    public String delete(@PathVariable Long id) {
-      service.delete(id);
+      Task task = service.findById(id); // load from DB
+      service.delete(task); // security check happens here
       return "redirect:/tasks";
    }
 }
@@ -482,3 +483,38 @@ Then on startup, Spring will run `data.sql` after Hibernate creates/updates the 
 
 Best practice: open your DB (psql / DBeaver / IntelliJ) and run `SELECT * FROM tasks;` to verify inserts.
 
+## 9. Allowing delete funcionality only to admins or the ones who created the task
+
+In the websecurityconfig class add the following attribute:
+
+``` Java
+@EnableMethodSecurity(prePostEnabled = true)
+```
+
+Put the security rule on the service, with a Task parameter
+
+``` Java
+  @PreAuthorize("hasRole('ADMIN') or #task.createdBy == authentication.name")
+
+
+```
+
+Let's disable the delete buttton when the user isn't allowed to click it
+
+In the list.html add the following attribute to the button. in that way, only users that are allowed to delete a task see the button 
+
+``` html
+sec:authorize="hasRole('ADMIN') or #authentication.name == #vars.task.createdBy">
+
+```
+
+If want to improve the UI you can show a disabled version of the button to the others.
+
+``` html
+<button type="button"
+           disabled
+           style="display:inline"
+           sec:authorize="!(hasRole('ADMIN') or #authentication.name == #vars.task.createdBy)">
+            Delete
+</button>
+```

@@ -3,6 +3,8 @@ package com.example.demo.service;
 
 import com.example.demo.model.Task;
 import com.example.demo.repository.TaskRepository;
+
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,7 +30,8 @@ public class TaskService {
       return repo.save(task);
    }
 
-   public void delete(Long id) {
-      repo.deleteById(id);
+  @PreAuthorize("hasRole('ADMIN') or #task.createdBy == authentication.name")
+   public void delete(Task task) {
+      repo.delete(task);
    }
 }

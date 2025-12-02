@@ -4,6 +4,8 @@ package com.example.demo.controller;
 import com.example.demo.model.Task;
 import com.example.demo.model.TaskStatus;
 import com.example.demo.service.TaskService;
+
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -46,14 +48,15 @@ public class TaskController {
 
    @PostMapping("/{id}")
    public String update(@PathVariable Long id, @ModelAttribute Task task) {
-      task.setId(id);      
+      task.setId(id);
       service.save(task);
       return "redirect:/tasks";
    }
 
    @PostMapping("/{id}/delete")
    public String delete(@PathVariable Long id) {
-      service.delete(id);
+      Task task = service.findById(id); // load from DB
+      service.delete(task); // security check happens here
       return "redirect:/tasks";
    }
 }
