@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+   <meta charset="UTF-8">
+   <title th:text="${task.id != null} ? 'Edit Task' : 'New Task'">Task Form</title>
+</head>
+<body>
+<h1 th:text="${task.id != null} ? 'Edit Task' : 'New Task'">Task Form</h1>
+
+<form th:object="${task}"
+      th:action="${task.id != null} ? @{/tasks/{id}(id=${task.id})} : @{/tasks}"
+      method="post">
+   
+   <div>
+      <label for="name">Name:</label>
+      <input type="text" id="name" th:field="*{name}" />
+   </div>
+
+   <div>
+      <label for="description">Description:</label>
+      <textarea id="description" th:field="*{description}"></textarea>
+   </div>
+
+   <div>
+      <label for="createdBy">Created By:</label>
+      <input type="text" id="createdBy" th:field="*{createdBy}" />
+   </div>
+
+   <div>
+      <label for="assignTo">Assign To:</label>
+      <input type="text" id="assignTo" th:field="*{assignTo}" />
+   </div>
+
+   <div>
+      <label for="status">Status:</label>
+      <select id="status" th:field="*{status}">
+         <option th:each="statusOption : ${T(com.example.demo.model.TaskStatus).values()}"
+                 th:value="${statusOption}"
+                 th:text="${statusOption}">
+         </option>
+      </select>
+   </div>
+
+   <button type="submit">Save</button>
+   <a th:href="@{/tasks}">Cancel</a>
+</form>
+</body>
+</html>
