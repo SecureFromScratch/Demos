@@ -140,7 +140,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
 ```java
 // src/main/java/com/example/demo/service/TaskService.java
-// src/main/java/com/example/demo/service/TaskService.java
 package com.example.demo.service;
 
 import com.example.demo.model.Task;
