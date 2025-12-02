@@ -1,3 +1,4 @@
+
 INSERT INTO tasks (name, description, created_by, assign_to, status, create_date)
 SELECT seed.name, seed.description, seed.created_by, seed.assign_to, seed.status, seed.create_date
 FROM (
