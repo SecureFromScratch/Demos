@@ -1,3 +1,5 @@
+# Adding tasks funcionality
+
 ## 1. Entity + enum
 
 ```java
@@ -12,7 +14,6 @@ public enum TaskStatus {
 ```
 
 ```java
-// src/main/java/com/example/demo/model/Task.java
 // src/main/java/com/example/demo/model/Task.java
 package com.example.demo.model;
 
@@ -368,7 +369,7 @@ Best practices to consider later: add Bean Validation (`@NotBlank`, `@Size`, etc
 
 Do you want me to add basic validation annotations and show how to display errors in the Thymeleaf form?
 
-##7. Add some tasks to play with
+## 7. Add some tasks to play with
 
 
 Create this file:
@@ -458,7 +459,7 @@ Then on startup, Spring will run `data.sql` after Hibernate creates/updates the 
 
 
 
-##8. Using the system
+## 8. Using the system
 
 1. You open the UI:
 
