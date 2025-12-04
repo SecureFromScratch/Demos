@@ -280,5 +280,5 @@ Create the following enpoint in profile controller
         return "debug";
     }
 ```
-Add a corresponding temple (you can  see the output in the console without it)
+Add a corresponding template (you can  see the output in the console without it)
 
