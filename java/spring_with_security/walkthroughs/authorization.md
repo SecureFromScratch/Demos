@@ -437,12 +437,18 @@ private String department; // "project_management", "development", "hr"
 
 #### **2. Update Database**
 Run this SQL to add the department column:
+
+``` bash
+docker exec -it spring-security-postgres psql -U appuser -d appdb
+
+```
+
 ```sql
 ALTER TABLE users ADD COLUMN department VARCHAR(100);
 
 -- Assign departments to existing users
-UPDATE users SET department = 'project_management' WHERE username = 'admin';
-UPDATE users SET department = 'development' WHERE username = 'john_doe';
+UPDATE users SET department = 'project_management' WHERE username = 'PM1';
+UPDATE users SET department = 'development' WHERE username LIKE 'Dev%';
 ```
 
 #### **3. Create the Files:**
@@ -452,7 +458,37 @@ UPDATE users SET department = 'development' WHERE username = 'john_doe';
 - `task-types.html` - View page (all users)
 - `task-type-form.html` - Create/Edit form (project_management only)
 
+Lets see the important code in the controller:
 
+``` java
+ // Helper method to check if user is from project_management
+    private boolean isProjectManagement(Authentication authentication) {
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return "project_management".equalsIgnoreCase(user.getDepartment());
+    }
+```
+
+``` java
+ // Show create form - Only project_management
+    @GetMapping("/create")
+    public String showCreateForm(Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
+        if (!isProjectManagement(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Access denied. Only Project Management can create task types.");
+            return "redirect:/task-types";
+        }
+        
+        model.addAttribute("taskType", new TaskType());
+        return "task-type-form";
+    }
+```
+and also in the websecurityconfig:
+
+``` java
+
+
+```
 
 ### 4. Demostration of more implementations of spring authentication object
 
