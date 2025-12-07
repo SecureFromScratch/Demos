@@ -407,8 +407,31 @@ Subsequent Users:
 ```
 
 ---
+### Step 6: Configure MVC
 
-### Step 6: Configure Spring Security
+``` java
+package com.example.demo;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class MvcConfig implements WebMvcConfigurer {
+
+	public void addViewControllers(ViewControllerRegistry registry) {
+		registry.addViewController("/home").setViewName("home");
+		registry.addViewController("/").setViewName("home");
+		registry.addViewController("/hello").setViewName("hello");
+		registry.addViewController("/login").setViewName("login");
+	}
+
+}
+
+```
+
+
+### Step 7: Configure Spring Security
 
 **File:** `src/main/java/com/example/demo/config/WebSecurityConfig.java`
 
@@ -531,7 +554,7 @@ Argon2PasswordEncoder(
 
 ---
 
-### Step 7: Create the Registration Template
+### Step 8: Create the Registration Template
 
 **File:** `src/main/resources/templates/register.html`
 
