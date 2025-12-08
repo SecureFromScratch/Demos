@@ -85,6 +85,6 @@ public class UserService : IUserService
    public Task<bool> VerifyPasswordAsync(AppUser user, string rawPassword)
    {
       var result = m_passwordHasher.VerifyHashedPassword(user, user.PasswordHash, rawPassword);
-      return Task.FromResult(result == PasswordVerificationResult.Success);
+      return System.Threading.Tasks.Task.FromResult(result == PasswordVerificationResult.Success);
    }
 }

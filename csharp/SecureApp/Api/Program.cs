@@ -63,6 +63,9 @@ builder.Services.AddAuthorization(options =>
    options.AddPolicy("AdminOnly", policy => policy.RequireRole("ADMIN"));
 });
 
+builder.Services.AddScoped<Api.Services.ITaskService, Api.Services.TaskService>();
+
+
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -115,7 +118,22 @@ else
    app.UseExceptionHandler("/error");
    app.UseHsts();
 }
+//just once
 
+using (var scope = app.Services.CreateScope())
+{
+   var services = scope.ServiceProvider;
+   var db = services.GetRequiredService<AppDbContext>();
+   var logger = services.GetRequiredService<ILoggerFactory>()
+      .CreateLogger("DbInitializer");
+
+   // Apply migrations automatically (optional but handy in dev)
+   db.Database.Migrate();
+
+   await Api.Data.Seed.TasksSeedData.SeedAsync(db, logger);
+}
+
+// end of just once
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
