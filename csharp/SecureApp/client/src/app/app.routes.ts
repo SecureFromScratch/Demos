@@ -1,0 +1,20 @@
+import { Routes } from '@angular/router';
+import { SetupComponent } from './pages/setup/setup.component';
+import { RegisterComponent } from './pages/register/register.component';
+import { LoginComponent } from './pages/login/login.component';
+import { HomeComponent } from './pages/home/home.component';
+import { AuthGuard } from './guards/auth.guard';
+
+
+export const routes: Routes = [
+  { path: 'setup', component: SetupComponent },
+  { path: 'register', component: RegisterComponent },
+  { path: 'login', component: LoginComponent },
+  { path: 'home', component: HomeComponent, canActivate:[AuthGuard]},
+
+  // default route
+  { path: '', redirectTo: 'register', pathMatch: 'full' },
+
+  // catch-all
+  { path: '**', redirectTo: 'register' }
+];
