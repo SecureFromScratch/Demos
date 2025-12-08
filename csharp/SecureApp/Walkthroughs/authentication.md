@@ -1,422 +1,216 @@
 
+# Authentication, the API part
 
-Goal: keep your **API** as a clean JWT-protected service, and add a **BFF** that:
+## 1. Create solution skeleton
 
-* Talks to the API with **Bearer tokens**
-* Talks to the browser (Angular) with **cookies**
-* Keeps JWTs **out of the browser**
-
-Architecture after this:
-
-```text
-Angular SPA  ──(cookies, JSON)──►  BFF  ──(Bearer JWT)──►  API  ──► SQL Server
+```bash
+mkdir SecureApp
+cd SecureApp
 ```
 
-Below is a **full, from-previous-setup-to-BFF** tutorial. I’ll assume you already have:
+We will have:
 
-* `SecureApp/Api` – the JWT API we built
-* `SecureApp/client` – Angular SPA
-* SQL Server + Infisical secrets as before
+* `docker-compose.yml`        (SQL Server – from repo)
+* `Api/`                      (.NET backend API)
+* `Bff/`                      (.NET BFF – frontend-facing)
+* `client/`                   (Angular)
 
-We will add:
-
-* `SecureApp/Bff` – ASP.NET Core BFF
+If you already cloned the repo, this structure should already exist.
 
 ---
 
-## 1. BFF: new ASP.NET Core project
+## 3. Infisical secrets
 
-From `SecureApp/`:
+In Infisical, in your project `dev` environment, define:
 
-```bash
-dotnet new webapi -n Bff
-cd Bff
+```text
+DB_HOST      = localhost
+DB_PORT      = 14333
+DB_NAME      = MyAppDb
+DB_USER      = sa
+DB_PASSWORD  = Your_Strong_SA_Password!123
+
+JWT_SECRET   = a_very_long_random_string_at_least_32_chars
+JWT_ISSUER   = secureapp-api
+JWT_AUDIENCE = secureapp-client-or-bff
 ```
 
-And
+> Best practice: No secrets in code or git, only via Infisical / environment.
+
+---
+
+## 4. SQL Server in Docker with persistence
+
+Use the `SecureApp/docker-compose.yml` from the repo.
+
+To start SQL Server with Infisical:
 
 ```bash
+cd SecureApp
+infisical run --env=dev --projectId <YOUR_PROJECT_ID> -- docker compose up -d
+```
+
+Check:
+
+```bash
+docker ps
+docker logs secureapp-sqlserver
+```
+
+---
+
+## 5. Backend: API + BFF
+
+### 5.1 API project
+
+If creating from scratch:
+
+```bash
+cd SecureApp
+dotnet new webapi -n Api
+cd Api
 dotnet restore
 ```
 
-### 1.1 appsettings.json for BFF
+From the repo, copy the API files into:
 
-We only need to know where the API lives:
+* Config:
 
-`Bff/appsettings.json`:
+  * `Api/appsettings.json`  (no secrets – use repo version)
+* Models:
 
-```json
-{
-  "ApiBaseUrl": "https://localhost:5001/",
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*"
-}
+  * `Api/Models/AppUser.cs`
+* Data:
+
+  * `Api/Data/AppDbContext.cs`
+* Services:
+
+  * `Api/Services/IUserService.cs`
+  * `Api/Services/UserService.cs`
+* Controllers:
+
+  * `Api/Controllers/AccountController.cs`
+  * `Api/Controllers/AdminController.cs`
+* Entry point:
+
+  * `Api/Program.cs` (API configuration, EF Core, JWT, CORS)
+
+> Best practice: Keep the API “clean” – only business logic + data + auth. No SPA-specific logic here.
+
+### 5.2 BFF project
+
+Your BFF should:
+
+* Accept requests from the Angular SPA
+* Call the **API** internally (usually via HTTP or same solution project)
+* Manage auth/session (tokens/cookies) and expose safe endpoints to the SPA
+
+Files to copy from the repo (paths may be slightly different depending on your naming):
+
+* `Bff/Program.cs` (BFF setup, HTTP client to API, auth middleware, etc.)
+* `Bff/Controllers/...` (BFF controllers that the SPA calls, e.g. `/bff/account`, `/bff/admin`)
+* Any DTOs / services needed:
+
+  * `Bff/Models/...`
+  * `Bff/Services/...`
+
+> Best practice: SPA only talks to BFF; BFF talks to API. Don’t let the browser talk directly to sensitive internal APIs in production.
+
+### 5.3 Migrations (API DB)
+
+Install EF tool once if needed:
+
+```bash
+dotnet tool install --global dotnet-ef
 ```
 
-No secrets here. JWT verification still happens on the **API**, not the BFF.
+From `SecureApp/Api`:
+
+```bash
+infisical run --env=dev --projectId <YOUR_PROJECT_ID> -- dotnet ef migrations add InitialSqlServer
+infisical run --env=dev --projectId <YOUR_PROJECT_ID> -- dotnet ef database update
+```
 
 ---
 
-## 2. BFF Program.cs – cookie auth + HttpClient to API
+## 6. Frontend: Angular SPA
 
-Replace `Bff/Program.cs` with:
+### 6.1 Create Angular project (if starting from scratch)
 
-```csharp
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
+From `SecureApp`:
 
-var builder = WebApplication.CreateBuilder(args);
-
-// HttpClient for calling the API
-builder.Services.AddHttpClient("Api", client =>
-{
-   var baseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:5001/";
-   client.BaseAddress = new Uri(baseUrl);
-});
-
-// Cookie auth for browser ↔ BFF
-builder.Services
-   .AddAuthentication("bff")
-   .AddCookie("bff", options =>
-   {
-      options.LoginPath = "/bff/unauthorized";
-      options.Cookie.Name = "bff_auth";
-      options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-      options.Cookie.SameSite = SameSiteMode.None; // needed for cross-origin dev
-   });
-
-builder.Services.AddAuthorization();
-
-// CORS for Angular dev (4200 → 5002)
-builder.Services.AddCors(options =>
-{
-   options.AddPolicy("SpaDev", policy =>
-   {
-      policy.WithOrigins("http://localhost:4200")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-   });
-});
-
-// DTOs matching the API's JSON
-public record LoginRequest(string UserName, string Password);
-public record MeResponse(string UserName, string[] Roles);
-public record LoginResponse(string Token, MeResponse User);
-
-var app = builder.Build();
-
-if (!app.Environment.IsDevelopment())
-{
-   app.UseExceptionHandler("/error");
-   app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-app.UseRouting();
-
-app.UseCors("SpaDev");
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Helper to get JWT from cookie claims
-string? GetToken(ClaimsPrincipal user)
-   => user.FindFirst("access_token")?.Value;
-
-// ------------- BFF ENDPOINTS -------------
-
-// Angular can call this just to see "you're not logged in"
-app.MapGet("/bff/unauthorized", () => Results.Unauthorized());
-
-// Login: BFF forwards credentials to API, stores token in cookie
-app.MapPost("/bff/account/login", async (
-   LoginRequest req,
-   IHttpClientFactory factory,
-   HttpContext http) =>
-{
-   var client = factory.CreateClient("Api");
-
-   // Call API: /api/account/login
-   var resp = await client.PostAsJsonAsync("api/account/login", req);
-
-   if (!resp.IsSuccessStatusCode)
-   {
-      var body = await resp.Content.ReadAsStringAsync();
-      return Results.StatusCode((int)resp.StatusCode, body);
-   }
-
-   var login = await resp.Content.ReadFromJsonAsync<LoginResponse>();
-   if (login is null) return Results.StatusCode((int)HttpStatusCode.InternalServerError);
-
-   var claims = new List<Claim>
-   {
-      new(ClaimTypes.Name, login.User.UserName),
-      new("access_token", login.Token)
-   };
-
-   foreach (var role in login.User.Roles)
-   {
-      claims.Add(new Claim(ClaimTypes.Role, role));
-   }
-
-   var identity = new ClaimsIdentity(claims, "bff");
-   var principal = new ClaimsPrincipal(identity);
-
-   await http.SignInAsync("bff", principal, new AuthenticationProperties
-   {
-      IsPersistent = true,
-      ExpiresUtc = DateTimeOffset.UtcNow.AddHours(1)
-   });
-
-   // Return user info (no token)
-   return Results.Ok(login.User);
-});
-
-// Logout: clear cookie
-app.MapPost("/bff/account/logout", async (HttpContext http) =>
-{
-   await http.SignOutAsync("bff");
-   return Results.NoContent();
-});
-
-// Me: use cookie identity only (or forward to API if you prefer)
-app.MapGet("/bff/account/me", [Authorize(AuthenticationSchemes = "bff")] (ClaimsPrincipal user) =>
-{
-   var name = user.Identity?.Name ?? string.Empty;
-   var roles = user.Claims
-      .Where(c => c.Type == ClaimTypes.Role)
-      .Select(c => c.Value)
-      .ToArray();
-
-   return Results.Ok(new MeResponse(name, roles));
-});
-
-// First-user check → proxy to API /api/account/is-first-user
-app.MapGet("/bff/account/is-first-user", async (IHttpClientFactory factory) =>
-{
-   var client = factory.CreateClient("Api");
-   var resp = await client.GetAsync("api/account/is-first-user");
-   var body = await resp.Content.ReadAsStringAsync();
-   return Results.StatusCode((int)resp.StatusCode, body);
-});
-
-// Setup first admin → proxy to API /api/account/setup
-app.MapPost("/bff/account/setup", async (
-   LoginRequest req,
-   IHttpClientFactory factory) =>
-{
-   var client = factory.CreateClient("Api");
-   var resp = await client.PostAsJsonAsync("api/account/setup", req);
-   var body = await resp.Content.ReadAsStringAsync();
-   return Results.StatusCode((int)resp.StatusCode, body);
-});
-
-// Register normal user → proxy to API /api/account/register
-app.MapPost("/bff/account/register", async (
-   LoginRequest req,
-   IHttpClientFactory factory) =>
-{
-   var client = factory.CreateClient("Api");
-   var resp = await client.PostAsJsonAsync("api/account/register", req);
-   var body = await resp.Content.ReadAsStringAsync();
-   return Results.StatusCode((int)resp.StatusCode, body);
-});
-
-// Admin dashboard → call API /api/admin/dashboard with JWT from cookie
-app.MapGet("/bff/admin/dashboard", [Authorize(AuthenticationSchemes = "bff")] async (
-   IHttpClientFactory factory,
-   ClaimsPrincipal user) =>
-{
-   var token = GetToken(user);
-   if (token is null)
-      return Results.Unauthorized();
-
-   var client = factory.CreateClient("Api");
-   var request = new HttpRequestMessage(HttpMethod.Get, "api/admin/dashboard");
-   request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-   var resp = await client.SendAsync(request);
-   var body = await resp.Content.ReadAsStringAsync();
-   return Results.StatusCode((int)resp.StatusCode, body);
-});
-
-app.Run();
+```bash
+ng new client --routing true --style css
+cd client
 ```
 
-Now:
+If you cloned the repo, `SecureApp/client` already exists.
 
-* Browser talks to BFF with **cookies**.
-* BFF talks to API with **Bearer token** stored in cookie claims.
-* Angular never sees the JWT.
+### 6.2 Proxy for BFF
 
-> Make sure BFF uses its own port (VS will create `launchSettings.json` with e.g. 5002). If it collides with Api, change it there.
+Angular should talk to the **BFF**, not directly to the API.
+
+Use `client/proxy.conf.json` from the repo and make sure:
+
+* The `"target"` points to your **BFF** URL, e.g.:
+
+  * `http://localhost:5120` or whatever port `Bff` prints on startup.
+
+In `client/package.json`, ensure the `start` script uses the proxy:
+
+* `ng serve --proxy-config proxy.conf.json`
+
+> Best practice: Single origin + proxy in dev keeps CORS simple and realistic (SPA → BFF).
+
+### 6.3 Angular modules & pages
+
+From the repo, copy these files (do **not** rewrite by hand):
+
+* Root module and routing:
+
+  * `client/src/app/app.module.ts`
+  * `client/src/app/app-routing.module.ts`
+
+* Auth service:
+
+  * `client/src/app/services/auth.service.ts`  
+
+  > If your BFF uses cookies instead of SPA-stored JWT, the interceptor might only need to add nothing or add CSRF headers. Use the repo version that matches your BFF.
+
+* Pages / components:
+
+  * Setup page:
+
+    * `client/src/app/pages/setup/setup.component.ts`
+    * `client/src/app/pages/setup/setup.component.html`
+  * Register page:
+
+    * `client/src/app/pages/register/register.component.ts`
+    * `client/src/app/pages/register/register.component.html`
+  * Login page:
+
+    * `client/src/app/pages/login/login.component.ts`
+    * `client/src/app/pages/login/login.component.html`
+
+* Styles:
+
+  * `client/src/styles.css` (basic layout + `.container`, `.form-group`, `.info`, `.error`, etc.)
+
+> Best practice: Keep all auth UX (setup/register/login) in one place and keep the actual security logic in BFF/API, not in the Angular code.
 
 ---
 
-## 3. API: no changes needed
+## 7. Run everything
 
-The `Api` project stays **exactly** as in your last tutorial:
+### 7.1 SQL Server
 
-* `/api/account/login` returns `{ token, user }`
-* Auth is JWT bearer
-* Roles and first admin logic all unchanged
-
-BFF just consumes those endpoints.
-
-You **can** tighten API CORS now (only allow BFF), but since BFF talks to API server-to-server and doesn’t use browser, CORS is not relevant for API anymore.
-
----
-
-## 4. Angular: talk to BFF instead of API
-
-Now we point Angular at BFF and let cookies handle auth.
-
-### 4.1 Proxy: target BFF
-
-Change `client/proxy.conf.json` to:
-
-```json
-{
-  "/bff": {
-    "target": "https://localhost:5002",
-    "secure": false,
-    "changeOrigin": true
-  }
-}
-```
-
-(Port must match BFF’s HTTPS port.)
-
-And `package.json` script `start` is already:
-
-```json
-"start": "ng serve --proxy-config proxy.conf.json"
-```
-
-### 4.2 AuthService: remove manual JWT, use cookies
-
-Update `src/app/services/auth.service.ts`:
-
-```ts
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
-
-export interface MeResponse {
-  userName: string;
-  roles: string[];
-}
-
-@Injectable({
-  providedIn: 'root'
-})
-export class AuthService {
-
-  private baseUrl = '/bff/account';
-
-  constructor(private http: HttpClient) { }
-
-  isFirstUser(): Observable<boolean> {
-    return this.http.get<boolean>(`${this.baseUrl}/is-first-user`, {
-      withCredentials: true
-    });
-  }
-
-  setup(userName: string, password: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/setup`,
-      { userName, password },
-      { withCredentials: true });
-  }
-
-  register(userName: string, password: string): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/register`,
-      { userName, password },
-      { withCredentials: true });
-  }
-
-  login(userName: string, password: string): Observable<MeResponse> {
-    return this.http.post<MeResponse>(`${this.baseUrl}/login`,
-      { userName, password },
-      { withCredentials: true });
-  }
-
-  logout(): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/logout`, {}, {
-      withCredentials: true
-    }).pipe(map(() => void 0));
-  }
-
-  me(): Observable<MeResponse | null> {
-    return this.http.get<MeResponse>(`${this.baseUrl}/me`, {
-      withCredentials: true
-    }).pipe(
-      map(x => x ?? null)
-    );
-  }
-}
-```
-
-Key points:
-
-* All calls use `withCredentials: true` so cookies flow to BFF.
-* No token stored in `localStorage` / memory: BFF handles that.
-
-### 4.3 Remove the JWT interceptor
-
-Delete or stop using `AuthTokenInterceptor`:
-
-* Either delete `auth-token.interceptor.ts` and remove from `providers` in `app.module.ts`, or just remove it from `providers`.
-
-In `app.module.ts` remove:
-
-```ts
-providers: [
-  {
-    provide: HTTP_INTERCEPTORS,
-    useClass: AuthTokenInterceptor,
-    multi: true
-  }
-],
-```
-
-No need for Authorization header anymore; cookie does it.
-
-### 4.4 Components (setup/register/login)
-
-They stay the same aside from imports:
-
-* `setup`: calls `auth.isFirstUser`, `auth.setup`
-* `register`: calls `auth.isFirstUser`, `auth.register`
-* `login`: calls `auth.login`, then router navigate
-
-No code changes required other than the service already updated.
-
----
-
-## 5. Run everything together
-
-From `SecureApp/`:
-
-### 5.1 Start SQL Server (once per dev session)
+From `SecureApp`:
 
 ```bash
 infisical run --env=dev --projectId <YOUR_PROJECT_ID> -- docker compose up -d
 ```
 
-(If it’s already running, this is a no-op.)
-
-### 5.2 Make sure API DB schema exists
+### 7.2 Apply migrations (once)
 
 From `SecureApp/Api`:
 
@@ -424,9 +218,7 @@ From `SecureApp/Api`:
 infisical run --env=dev --projectId <YOUR_PROJECT_ID> -- dotnet ef database update
 ```
 
-(Only needed when model changes or first run.)
-
-### 5.3 Run API
+### 7.3 Run API
 
 From `SecureApp/Api`:
 
@@ -434,9 +226,9 @@ From `SecureApp/Api`:
 infisical run --env=dev --projectId <YOUR_PROJECT_ID> -- dotnet run
 ```
 
-API on `https://localhost:5001`.
+Note the port printed in the console (e.g. `http://localhost:5207`) – this is what the **BFF** uses as its upstream API.
 
-### 5.4 Run BFF
+### 7.4 Run BFF
 
 From `SecureApp/Bff`:
 
@@ -444,66 +236,34 @@ From `SecureApp/Bff`:
 dotnet run
 ```
 
-BFF on `https://localhost:5002` (check `launchSettings.json` if different).
+Note the BFF port (e.g. `http://localhost:5120`) – this is what Angular should target in `proxy.conf.json`.
 
-### 5.5 Run Angular
+### 7.5 Run Angular
 
 From `SecureApp/client`:
 
 ```bash
-npm install    # first time
+npm install
 npm start
 ```
 
-Angular on `http://localhost:4200`, calling BFF via `/bff/...` proxy.
+Angular dev server at `http://localhost:4200`.
 
 ---
 
-## 6. Flows (with BFF)
+## 8. Test flows (with BFF in front)
 
-### 6.1 First admin setup
+1. Open `http://localhost:4200/`.
+2. SPA calls BFF (through `/api/...` or `/bff/...` as you designed).
+3. BFF calls API (`/api/account/...` etc.) and manages auth/session.
+4. Test:
 
-1. Open `http://localhost:4200/register`
-   → Angular calls `GET /bff/account/is-first-user`
-   → BFF proxies to API `/api/account/is-first-user`
-   → DB empty → `true` → Angular redirects to `/setup`.
+   * first admin setup flow
+   * registration of normal users
+   * login + protected endpoints (e.g. admin-only)
 
-2. On `/setup`, submit admin credentials.
-   → Angular POST `/bff/account/setup`
-   → BFF proxies to API `/api/account/setup` (no auth required first time).
+> Best practice: Verify:
+>
+> * Normal user cannot access admin endpoints (403/401).
+> * Auth survives refresh correctly under your chosen session model (cookies vs JWT in storage).
 
-Admin user is now `ADMIN,USER`.
-
-### 6.2 Login
-
-1. Angular POST `/bff/account/login` with `{ userName, password }`.
-
-2. BFF POSTs to API `/api/account/login`.
-
-3. API returns `{ token, user }`.
-
-4. BFF:
-
-   * Stores `token` in cookie claims as `access_token`.
-   * Adds roles & name into claims.
-   * Issues **cookie** back to browser.
-
-5. Angular gets user info (but no token) and navigates.
-
-### 6.3 Authenticated requests
-
-* Angular calls `/bff/account/me` with `withCredentials:true`.
-* BFF reads claims from cookie and returns `{ userName, roles }`.
-* For admin features Angular can call `/bff/admin/dashboard`; BFF injects Bearer JWT call to API `/api/admin/dashboard`.
-
-### 6.4 Logout
-
-* Angular POST `/bff/account/logout`.
-* BFF clears cookie.
-
----
-
-If you want, next step could be:
-
-* Add an Angular `AuthGuard` that calls `/bff/account/me` and only allows navigation when logged in / has ADMIN role, or
-* Harden cookie settings for prod (domain, SameSite, HTTPS-only, etc.) and show how to serve the built Angular app from BFF or API behind a single origin.
