@@ -1,3 +1,42 @@
+## 0. What is a BFF?
+
+**BFF = Backend For Frontend**
+
+A BFF is a **dedicated backend service built specifically for one frontend** (for example, your Angular SPA).  
+Instead of the SPA talking to many APIs directly, it talks to **one** BFF, and the BFF talks to internal services.
+
+**What the BFF does**
+
+* **Client-shaped API**
+  * Endpoints are designed for the SPA’s screens and flows, not your microservice boundaries.
+* **Security front door**
+  * Terminates cookies and sessions.
+  * Validates identity (JWT/session).
+  * Applies global rules (blocked users/tenants, IP rules).
+  * Adds rate limiting, logging, correlation IDs, security headers.
+* **Orchestration and composition**
+  * Calls multiple internal services.
+  * Combines and reshapes data into a single response for the SPA.
+* **Protocol and model translation**
+  * Hides internal protocols (REST/gRPC/GraphQL/legacy).
+  * Exposes a stable, clean API to the frontend.
+
+**What the BFF is NOT**
+
+* Not a replacement for **business authorization** inside each domain service.
+* Not a generic “API gateway for everything” (it is usually per-client-type: Web BFF, Mobile BFF, etc.).
+* Not required to be huge – it can remain thin and focused on:
+  * “Take SPA requests → apply front-door security → call internal APIs → return UI-friendly response.”
+
+**Why it matters in this JWT discussion**
+
+* It gives you a natural place to:
+  * Store JWT as claims in an encrypted cookie-bound session.
+  * Keep the JWT fully out of JavaScript.
+  * Hide internal APIs behind a single public entry point.
+
+---
+
 ## 1. JWT in localstorage / cookie / bff
 
 ### High level
@@ -205,7 +244,3 @@ Best practices (for all three):
       │ Cookie safe from JS, only BFF is public,
       │ JWT lives and moves only inside backend
       └───────────────────────────────────────────────
-````
-
-
-
