@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // HttpClient for calling the API
 builder.Services.AddHttpClient("Api", client =>
 {
-   var baseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:5001/";
+   var baseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:5120/";
    client.BaseAddress = new Uri(baseUrl);
 });
 
@@ -22,8 +22,8 @@ builder.Services
    {
       options.LoginPath = "/bff/unauthorized";
       options.Cookie.Name = "bff_auth";
-      options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-      options.Cookie.SameSite = SameSiteMode.None; // needed for cross-origin dev
+      //options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+      options.Cookie.SameSite = SameSiteMode.Lax; // needed for cross-origin dev
    });
 
 builder.Services.AddAuthorization();
@@ -61,7 +61,12 @@ app.UseAuthorization();
 string? GetToken(ClaimsPrincipal user)
    => user.FindFirst("access_token")?.Value;
 
+// Angular can call this just to see "you're not logged in"
+app.MapGet("/bff/hello", () => Results.Unauthorized());
+
+
 // ------------- BFF ENDPOINTS -------------
+
 
 // Angular can call this just to see "you're not logged in"
 app.MapGet("/bff/unauthorized", () => Results.Unauthorized());
