@@ -137,4 +137,24 @@ public sealed class RecipesBffController : ControllerBase
         };
     }
 
+    [AllowAnonymous] // or keep [Authorize] if you want auth
+    [HttpGet("~/uploads/{**path}")] // Catch all uploads requests
+    public async Task<IActionResult> GetUpload(string path)
+    {
+        var client = m_httpClientFactory.CreateClient("Api");
+
+        //var response = await client.GetAsync($"uploads/{path}", HttpContext.RequestAborted);
+        var response = await client.GetAsync($"{path}", HttpContext.RequestAborted);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return NotFound();
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+
+        return File(bytes, contentType);
+    }
+
 }
