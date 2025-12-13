@@ -64,7 +64,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddScoped<Api.Services.ITaskService, Api.Services.TaskService>();
-
+builder.Services.AddScoped<Api.Services.IRecipeService, Api.Services.RecipeService>();
 
 builder.Services.AddControllers();
 
