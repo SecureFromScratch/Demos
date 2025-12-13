@@ -133,6 +133,14 @@ using (var scope = app.Services.CreateScope())
    await Api.Data.Seed.TasksSeedData.SeedAsync(db, logger);
 }
 
+app.UseStaticFiles(new StaticFileOptions
+{
+   FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+      Path.Combine(app.Environment.ContentRootPath, "uploads")),
+   RequestPath = "/uploads"
+});
+
+
 // end of just once
 app.UseHttpsRedirection();
 app.UseStaticFiles();

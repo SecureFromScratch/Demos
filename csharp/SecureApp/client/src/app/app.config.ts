@@ -8,7 +8,7 @@ import { routes } from './app.routes';
 import { credentialsInterceptor } from './interceptors/credentials.interceptor';
 
 
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -21,6 +21,6 @@ export const appConfig: ApplicationConfig = {
     ),
 
     // This line makes *ngIf/*ngFor and [(ngModel)] available app-wide
-    importProvidersFrom(CommonModule, FormsModule)
+    importProvidersFrom(CommonModule, FormsModule, HttpClient)
   ]
 };

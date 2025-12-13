@@ -63,7 +63,7 @@ namespace Api.Controllers
          {
             Name = dto.Name,
             Description = dto.Description,
-            Photo = dto.Photo, 
+            Photo = dto.Photo,
             Status = dto.Status
          };
 
@@ -78,7 +78,7 @@ namespace Api.Controllers
          {
             Name = dto.Name,
             Description = dto.Description,
-            Photo =dto.Photo,
+            Photo = dto.Photo,
             Status = dto.Status
          };
 
@@ -102,5 +102,47 @@ namespace Api.Controllers
 
          return NoContent();
       }
+
+      [HttpPost("{id:long}/photo")]
+      public async Task<IActionResult> UploadPhoto(long id, IFormFile photoFile)
+      {
+         if (photoFile == null || photoFile.Length == 0)
+            return BadRequest("Missing file.");
+
+         const long maxBytes = 5 * 1024 * 1024;
+         if (photoFile.Length > maxBytes)
+            return BadRequest("File too large.");
+
+         var ct = photoFile.ContentType ?? "";
+         if (ct != "image/jpeg" && ct != "image/png" && ct != "image/webp")
+            return BadRequest("Unsupported image type.");
+
+         var recipe = await m_service.GetByIdAsync(id);
+         if (recipe is null)
+            return NotFound();
+
+         var ext = ct switch
+         {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            _ => ""
+         };
+
+         var fileName = $"{Guid.NewGuid():N}{ext}";
+         var relDir = Path.Combine("uploads", "recipes", id.ToString());
+         var absDir = Path.Combine(Environment.CurrentDirectory, relDir);
+         Directory.CreateDirectory(absDir);
+
+         var absPath = Path.Combine(absDir, fileName);
+         await using (var fs = System.IO.File.Create(absPath))
+            await photoFile.CopyToAsync(fs, HttpContext.RequestAborted);
+
+         recipe.Photo = "/" + Path.Combine(relDir, fileName).Replace('\\', '/');
+
+         var updated = await m_service.UpdateAsync(id, recipe);
+         return Ok(updated);
+      }
+
    }
 }
