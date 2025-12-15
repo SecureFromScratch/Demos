@@ -402,12 +402,11 @@ withInterceptors([
 **"Double-Submit Cookie"** pattern.
 
 ### The Core Concept: "The Secret Handshake"
-To prove a request is real, the server demands that the client send the **same secret code** in two different places:
+To prove a request is real, the server demands that the client send two secret codes in two different places:
 1.  Inside a **Cookie** (Automatic).
 2.  Inside a **Header** (Manual).
 
 If they match, the server knows the request came from your legitimate Angular app.
-* This is one way to implement double submit, there are other implementations. 
 
 ---
 
