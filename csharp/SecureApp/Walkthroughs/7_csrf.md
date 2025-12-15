@@ -407,6 +407,7 @@ To prove a request is real, the server demands that the client send the **same s
 2.  Inside a **Header** (Manual).
 
 If they match, the server knows the request came from your legitimate Angular app.
+* This is one way to implement double submit, there are other implementations. 
 
 ---
 
