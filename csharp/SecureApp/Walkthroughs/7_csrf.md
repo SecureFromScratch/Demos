@@ -432,7 +432,29 @@ Server validates that the header token matches what’s stored for that session.
 
 This often looks similar to “double-submit” from the outside (cookie + header), but the key difference is: the server verifies the token is the one it issued for that session, not just “header equals cookie”.
 
+---
+In ASP.NET Core Antiforgery, the server usually **does not store a per-user CSRF token anywhere** (no DB, no Redis, no session).
 
+What happens instead:
+
+1. **A cookie token is stored on the client**
+   The framework sets an antiforgery cookie (and in your code you also set `XSRF-TOKEN`). That cookie value lives in the browser.
+
+2. **A request token is sent by the client (header/form)**
+   Angular copies the token into `X-XSRF-TOKEN` (header).
+
+3. **The server validates using its secret keys, not a stored token**
+   The request token is **cryptographically protected** (signed/encrypted) using the server’s **Data Protection keys**.
+   On validation, the server “unprotects” the request token with those keys and checks it matches the cookie token and other expected data.
+
+So the “server-side value” is not a stored token. It’s the server’s **Data Protection key ring** (the secret used to mint and verify tokens).
+
+Practical implication:
+
+* Single server: keys are on that server.
+* Multiple servers: you must **share the Data Protection keys** across instances (common: Redis, file share, Azure blob, etc.), otherwise CSRF validation can fail after load balancing.
+
+---
 
 ### Step-by-Step Flow
 
