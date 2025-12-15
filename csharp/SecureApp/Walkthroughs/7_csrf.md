@@ -399,7 +399,7 @@ withInterceptors([
 ```
 
 ## What happend here?
-**"Double-Submit Cookie"** pattern.
+A variation of **"Double-Submit Cookie"** pattern.
 
 ### The Core Concept: "The Secret Handshake"
 To prove a request is real, the server demands that the client send two secret codes in two different places:
@@ -431,6 +431,8 @@ Client sends the token in a header (Angular can do this automatically).
 Server validates that the header token matches what’s stored for that session.
 
 This often looks similar to “double-submit” from the outside (cookie + header), but the key difference is: the server verifies the token is the one it issued for that session, not just “header equals cookie”.
+
+
 
 ### Step-by-Step Flow
 
