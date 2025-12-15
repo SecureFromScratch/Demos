@@ -476,7 +476,7 @@ When the user clicks "Login":
 #### 3. The Validation (.NET Side)
 The request hits your C# Controller marked with `[ValidateAntiForgeryToken]`.
 * **.NET:** Looks at the **Cookie**: `abc-123-secret`.
-* **.NET:** Looks at the **Header**: `abc-123-secret`.
+* **.NET:** Decrypts and Looks at the **Header**: `abc-123-secret`.
 * **.NET:** "Do they match?"
     * **YES:** It allows the Login logic to proceed.
     * **NO:** It throws a `400 Bad Request` and the code never executes.
