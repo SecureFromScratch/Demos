@@ -1,0 +1,6 @@
+@VulnDownload_HostAddress = http://localhost:5007
+
+GET {{VulnDownload_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

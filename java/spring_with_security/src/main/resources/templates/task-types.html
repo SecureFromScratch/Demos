@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Types</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+        }
+        
+        .user-info {
+            text-align: right;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .department-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-edit {
+            background: #ffc107;
+            color: #333;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        thead {
+            background: #667eea;
+            color: white;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+        }
+        
+        tbody tr {
+            border-bottom: 1px solid #eee;
+        }
+        
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📋 Task Types</h1>
+            </div>
+            <div class="user-info">
+                <div>Logged in as: <strong th:text="${currentUser.username}"></strong></div>
+                <div>
+                    <span class="department-badge" th:text="${currentUser.department != null ? currentUser.department : 'No Department'}"></span>
+                </div>
+            </div>
+        </div>
+        
+        <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+        
+        <div style="margin-bottom: 20px;">
+            <a th:if="${canEdit}" href="/task-types/create" class="btn btn-primary">
+                ➕ Create New Task Type
+            </a>
+            <span th:unless="${canEdit}" style="color: #999; font-style: italic;">
+                ℹ️ Only Project Management can create/edit task types
+            </span>
+        </div>
+        
+        <div th:if="${taskTypes.isEmpty()}" class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h3>No Task Types Yet</h3>
+            <p>Create your first task type to get started.</p>
+        </div>
+        
+        <table th:unless="${taskTypes.isEmpty()}">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                    <th th:if="${canEdit}">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="taskType : ${taskTypes}">
+                    <td th:text="${taskType.id}">1</td>
+                    <td><strong th:text="${taskType.name}">Bug</strong></td>
+                    <td th:text="${taskType.description}">Fix software bugs</td>
+                    <td th:text="${#temporals.format(taskType.createdAt, 'dd/MM/yyyy HH:mm')}">01/01/2024</td>
+                    <td th:text="${#temporals.format(taskType.updatedAt, 'dd/MM/yyyy HH:mm')}">01/01/2024</td>
+                    <td th:if="${canEdit}">
+                        <div class="actions">
+                            <a th:href="@{/task-types/edit/{id}(id=${taskType.id})}" class="btn btn-edit">
+                                ✏️ Edit
+                            </a>
+                            <form th:action="@{/task-types/delete/{id}(id=${taskType.id})}" method="post" style="display: inline;"
+                                  onsubmit="return confirm('Are you sure you want to delete this task type?');">
+                                <button type="submit" class="btn btn-delete">🗑️ Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="/profile" class="btn btn-primary">← Back to Profile</a>
+        </div>
+    </div>
+</body>
+</html>

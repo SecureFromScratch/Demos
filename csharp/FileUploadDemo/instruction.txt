@@ -1,0 +1,4 @@
+sudo modprobe dummy
+sudo ip link add dummy0 type dummy
+sudo ip addr add 10.10.10.10 dev dummy0
+sudo ip link set dummy0 up

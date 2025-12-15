@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Debug</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #252526;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        h1 {
+            color: #4ec9b0;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .debug-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #1e1e1e;
+            border-left: 4px solid #007acc;
+            border-radius: 4px;
+        }
+        
+        .debug-label {
+            color: #569cd6;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .debug-value {
+            color: #ce9178;
+            font-size: 16px;
+            word-break: break-all;
+            padding: 10px;
+            background: #2d2d30;
+            border-radius: 4px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .status-true {
+            background: #1e7e34;
+            color: #fff;
+        }
+        
+        .status-false {
+            background: #bd2130;
+            color: #fff;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 12px 24px;
+            background: #007acc;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        
+        .back-link:hover {
+            background: #005a9e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Authentication Debug Info</h1>
+        
+        <div class="debug-section">
+            <span class="debug-label">Name (Username)</span>
+            <div class="debug-value" th:text="${name}">username</div>
+        </div>
+        
+        <div class="debug-section">
+            <span class="debug-label">Is Authenticated</span>
+            <div class="debug-value">
+                <span th:if="${isAuthenticated}" class="status-badge status-true">TRUE ✓</span>
+                <span th:unless="${isAuthenticated}" class="status-badge status-false">FALSE ✗</span>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <span class="debug-label">Principal Type</span>
+            <div class="debug-value" th:text="${principalType}">UserDetails</div>
+        </div>
+        
+        <div class="debug-section">
+            <span class="debug-label">Principal Details</span>
+            <div class="debug-value" th:text="${principal}">Principal info</div>
+        </div>
+        
+        <div class="debug-section">
+            <span class="debug-label">Authorities (Roles)</span>
+            <div class="debug-value" th:text="${authorities}">ROLE_USER, ROLE_ADMIN</div>
+        </div>
+        
+        <div class="debug-section">
+            <span class="debug-label">Credentials</span>
+            <div class="debug-value" th:text="${credentials}">null</div>
+        </div>
+        
+        <div class="debug-section">
+            <span class="debug-label">Details</span>
+            <div class="debug-value" th:text="${details}">WebAuthenticationDetails</div>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="/profile" class="back-link">← Back to Profile</a>
+        </div>
+    </div>
+</body>
+</html>

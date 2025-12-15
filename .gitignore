@@ -1,0 +1,111 @@
+# ====================
+# Visual Studio / IDE
+# ====================
+*.suo
+*.user
+*.userosscache
+*.rsuser
+*.sln.docstates
+*.vcxproj.user
+*.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sln.iml
+
+# ====================
+# Build / output
+# ====================
+bin/
+obj/
+[Bb]uild/
+[Rr]elease/
+[Rr]eleases/
+artifacts/
+
+# For publish
+publish/
+publish_temp/
+*.Publish.xml
+*.azurePubxml
+
+# ====================
+# Dependencies / tools
+# ====================
+.nuget/
+*.nupkg
+# If you have local tools manifests
+*.config
+# Maybe lock files if you don’t commit them
+project.lock.json
+project.fragment.lock.json
+
+# ====================
+# Logs, temp, crash dumps
+# ====================
+*.log
+*.vspscc
+*.vssscc
+*.pidb
+*.svclog
+*.tlog/
+*.tlog/**/*.log
+*.cache
+*.msi
+*.mp4
+*.objmeta
+
+# ====================
+# Database & Secrets
+# ====================
+*.mdf
+*.ldf
+*.bak
+secrets.json
+*.pfx
+*.key
+*.cer
+
+# ====================
+# Testing / coverage
+# ====================
+TestResults/
+coverage/
+coverage*.xml
+coverage*.json
+coverage*.info
+*.trx
+*.coverage
+*.coveragexml
+BenchmarkDotNet.Artifacts/
+
+# ====================
+# Generated files / scaffolding
+# ====================
+ScaffoldingReadMe.txt
+Generated\ Files/
+
+# ====================
+# Static / front-end artifacts
+# ====================
+node_modules/
+wwwroot/
+**/wwwroot/
+dist/
+build/
+*.bundle.js
+*.map
+
+# ====================
+# Others
+# ====================
+.DS_Store
+Thumbs.db
+*.temp
+*.tmp
+~$*
+
+# Exclude launchSettings if you don’t want to commit local environment settings
+**/Properties/launchSettings.json

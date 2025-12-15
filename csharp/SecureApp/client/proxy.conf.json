@@ -1,0 +1,12 @@
+{
+  "/bff": {
+    "target": "https://localhost:7203",
+    "secure": false,
+    "changeOrigin": true
+  },
+   "/uploads": {
+    "target": "https://localhost:7253",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

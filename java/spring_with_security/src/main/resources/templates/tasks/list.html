@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="https://www.thymeleaf.org/extras/spring-security">
+
+<head>
+   <meta charset="UTF-8">
+   <title>Tasks</title>
+</head>
+<body>
+<h1>Tasks</h1>
+
+<a th:href="@{/tasks/new}">New Task</a>
+
+<table border="1">
+   <thead>
+   <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Created By</th>
+      <th>Assign To</th>
+      <th>Status</th>
+      <th>Create Date</th>
+      <th>Actions</th>
+   </tr>
+   </thead>
+   <tbody>
+   <tr th:each="task : ${tasks}">
+      <td th:text="${task.id}"></td>
+      <td th:text="${task.name}"></td>
+      <td th:utext="${task.description}"></td>
+      <td th:text="${task.createdBy}"></td>
+      <td th:text="${task.assignTo}"></td>
+      <td th:text="${task.status}"></td>
+      <td th:text="${task.createDate}"></td>
+      <td>
+         <a th:href="@{'/tasks/' + ${task.id} + '/edit'}">Edit</a>
+         <form th:action="@{'/tasks/' + ${task.id} + '/delete'}" method="post" style="display:inline" 
+                  sec:authorize="hasRole('ADMIN') or #authentication.name == #vars.task.createdBy">
+            <button type="submit">Delete</button>
+         </form>
+         <button type="button"
+           disabled
+           style="display:inline"
+           sec:authorize="!(hasRole('ADMIN') or #authentication.name == #vars.task.createdBy)">
+            Delete
+         </button>
+      </td>
+   </tr>
+   </tbody>
+</table>
+</body>
+</html>

