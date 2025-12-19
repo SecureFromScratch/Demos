@@ -200,9 +200,11 @@ policy.SetIsOriginAllowed(origin =>
 ```
 ### Why CSRF Attacks are rare in SPAs
 
-The rise of Single Page Applications (SPAs) has shifted authentication patterns from session cookies to **header-based tokens (like JWT)**. Unlike cookies, browsers do not automatically attach custom headers to cross-origin requests, making these modern applications immune to CSRF by design. If the JWT is sent via header and not via Cookie"
+The rise of Single Page Applications (SPAs) has shifted many systems from session cookies to **header-based access tokens** (for example, a JWT in the `Authorization` header). This change typically removes classic CSRF risk, because **browsers automatically attach cookies**, but they **do not automatically attach `Authorization` headers** to requests triggered by another site.
 
-But, things are getting complicated. for the cookie to be sent as header they add to be saved in the client.
+If a malicious site tries to call your API with `fetch()` and include `Authorization`, the browser treats this as a **non-simple cross-origin request** and sends a **CORS preflight (`OPTIONS`)** first. The browser will only proceed with the actual request if the API replies with the correct CORS headers (such as allowing the attacker’s origin and headers). In a correctly configured policy that allows only trusted origins, the attacker’s origin is not allowed, so the browser blocks the request and the credentialed call never happens.
+
+But, things are getting complicated. for the cookie to be sent as header they had to be saved in the client.
 and we don't want that JWT along with the claims will be saved in the client. so BFF joined the scene. and now the cookies come back along with CSRF.
 
 ## CSRF And BFF Code
