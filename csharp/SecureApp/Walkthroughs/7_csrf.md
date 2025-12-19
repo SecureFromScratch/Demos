@@ -215,7 +215,7 @@ so CSRF is not possible, excluding the cases where get request was used for chan
 
 So the only thing that was left vulnerable is the login. remeber? we have no session cookie.
 
-**Attack Demostration:**
+**Attack Demostraion:**
 
 1. Go to the angular https://localhost:4200 
 2. Login 
@@ -504,7 +504,7 @@ The "Double-Submit" works because **only your specific domain** has the permissi
 ### Lets try the attack again!
 
 Go back to Attack Demostration and try to run the CSRF attack!
-if you follow the tutorial, you'll see in the log the same excpetion we got before we implemented the angular csrf protection. 
+if you follow the tutorial, you'll see in the log the same exception we got before we implemented the angular csrf protection. 
 
 ## Summary
 
