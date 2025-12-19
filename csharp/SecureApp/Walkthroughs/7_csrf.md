@@ -75,7 +75,7 @@ fetch('https://yourapp.com/bff/change-email', {
 ```
 If using GET for state changes + SameSite=Lax, this works.
 
-## Why CSRF attack are not so common anymore?
+## Why CSRF attack are less common?
 
 Cross-Site Request Forgery (CSRF), once a staple of the OWASP Top 10, has largely faded from the landscape of common web vulnerabilities due to a convergence of browser hardening and architectural shifts. The most significant defense is the widespread adoption of the **`SameSite` cookie attribute**, which modern browsers now default to `Lax`. This setting automatically prevents the browser from sending cookies during cross-site POST requests, effectively killing the attack vector for most standard implementations. 
 
