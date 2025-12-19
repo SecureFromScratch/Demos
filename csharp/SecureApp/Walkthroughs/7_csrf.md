@@ -392,7 +392,7 @@ update app.config.ts
 
 
 ```javascript
-// app.config.tx
+// app.config.ts
 export const appConfig: ApplicationConfig = {
    ...
 withInterceptors([
