@@ -208,12 +208,12 @@ But, things are getting complicated. for the cookie to be sent as header they ha
 and we don't want that JWT along with the claims will be saved in the client. so BFF joined the scene. and now the cookies come back along with CSRF.
 
 ## CSRF And BFF Code
-After the login, we have a session cookie. and this cookie is configured as same site=strict. meaning, it will not be sent by the browser in a case of http reuqest is troggered from another website.
+After the login, we have a session cookie. and this cookie is configured as same site=strict. meaning, it will not be sent by the browser in a case of http request is triggered from another website.
 even if it's a get request it will not be send.
 if we choose samesite=lax, the cookie will be sent by the browser when a get request will be triggered by another website, but not in a case of post.
-so CSRF is not possible, excluding the cases where get request was used for chnaging data which is wrong.
+so CSRF is not possible, excluding the cases where get request was used for changing data which is wrong.
 
-So the only thing that was left vulnerble is the login. remeber? we have no session cookie.
+So the only thing that was left vulnerable is the login. remeber? we have no session cookie.
 
 **Attack Demostration:**
 
@@ -222,7 +222,7 @@ So the only thing that was left vulnerble is the login. remeber? we have no sess
 3. Go to recipes
 4. Copy the url 
 5. Delete the cookie,
-6. Refresh the broswer to see there is no recipes anymore
+6. Refresh the browser to see there is no recipes anymore
 7. Create the html page below 
 8. Using an host of your choice for example python http server and go to the poc you created. 
 
@@ -329,10 +329,12 @@ app.Use(async (context, next) =>
 
 
 // Validate token on login
+[ValidateAntiForgeryToken]
 public async Task<IActionResult> Login([FromBody] LoginRequest req, IAntiforgery antiforgery)
     {
         var http = HttpContext; 
-        await antiforgery.ValidateRequestAsync(http);
+        // await antiforgery.ValidateRequestAsync(http);
+        
 ```
 
 if you don't implment the corresponding funcionality in the client, when performing login you will get the following error:
