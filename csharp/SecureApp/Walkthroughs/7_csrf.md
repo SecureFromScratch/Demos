@@ -129,10 +129,10 @@ SameSite=None    → Cookie always sent (requires Secure flag, least protective)
 
 ## Why CSRF Attacks can happen in login
 During login the authentication cookie wasn't created yet. 
-Attacker might trick us to authenticate with her user, redirect us to a shoping page of the web application and then we will buy some goodies that will be sent directly to her.
-why?
-because a login post request was sent from her maclious website, followed by a rediret to the shoping page.
-it happens when the cors policy is permissive. 
+An attacker’s page submits a login request with her credentials (form POST or fetch),
+Then it sends the victim to the vulnerable app by tricking him to click a link.
+
+The result: the attacker tricks the victim to authenticate with her user and buy some goodies that will be sent directly to her.
 
 for example like this:
 ```csharp 
