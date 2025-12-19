@@ -321,7 +321,7 @@ app.Use(async (context, next) =>
         {
             HttpOnly = false, // CRITICAL: Angular must be able to read this
             Secure = true, 
-            SameSite = SameSiteMode.None // Use None if cross-site, or Strict/Lax if same-site
+            SameSite = SameSiteMode.Strict
         });
 
     await next(context);
