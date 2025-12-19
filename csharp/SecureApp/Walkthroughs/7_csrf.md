@@ -14,7 +14,7 @@ Your browser **automatically sends cookies** with every request to a domain, eve
 2. `evil.com` contains this hidden form:
 
 ```html
-<form action="https://bank.com/transfer" method="POST" id="hack">
+<form action="HTTPs://bank.com/transfer" method="POST" id="hack">
     <input type="hidden" name="to" value="attacker" />
     <input type="hidden" name="amount" value="10000" />
 </form>
@@ -46,7 +46,7 @@ The bank **can't tell the difference** between:
 ### 1. Hidden Form Submission
 ```html
 <!-- On evil.com -->
-<form action="https://yourapp.com/bff/account/delete" method="POST">
+<form action="HTTPs://yourapp.com/bff/account/delete" method="POST">
     <input type="hidden" name="confirm" value="yes" />
 </form>
 <script>document.forms[0].submit();</script>
@@ -54,13 +54,13 @@ The bank **can't tell the difference** between:
 
 ### 2. Image Tag (GET-based)
 ```html
-<img src="https://yourapp.com/bff/logout" />
+<img src="HTTPs://yourapp.com/bff/logout" />
 ```
 When page loads, browser makes GET request with cookies.
 
 ### 3. AJAX Request (if CORS misconfigured)
 ```javascript
-fetch('https://yourapp.com/bff/change-email', {
+fetch('HTTPs://yourapp.com/bff/change-email', {
     method: 'POST',
     credentials: 'include',  // Sends cookies
     body: JSON.stringify({ email: 'attacker@evil.com' })
@@ -69,13 +69,13 @@ fetch('https://yourapp.com/bff/change-email', {
 
 ### 4. Link Click
 ```html
-<a href="https://yourapp.com/bff/delete-account">
+<a href="HTTPs://yourapp.com/bff/delete-account">
     Click for free iPhone!
 </a>
 ```
 If using GET for state changes + SameSite=Lax, this works.
 
-## Why CSRF attack are less common?
+## Why CSRF attacks are less common
 
 Cross-Site Request Forgery (CSRF), once a staple of the OWASP Top 10, has largely faded from the landscape of common web vulnerabilities due to a convergence of browser hardening and architectural shifts. The most significant defense is the widespread adoption of the **`SameSite` cookie attribute**, which modern browsers now default to `Lax`. This setting automatically prevents the browser from sending cookies during cross-site POST requests, effectively killing the attack vector for most standard implementations. 
 
@@ -163,8 +163,8 @@ Imagine you are building a platform like Shopify or a Customer Support Portal. Y
 
 Modern frontend hosting (like Vercel, Netlify, or Azure Static Web Apps) creates a unique URL for every code change.
 
-  * Pull Request \#1: `https://app-git-feature-login-xyz.vercel.app`
-  * Pull Request \#2: `https://app-git-fix-typo-abc.vercel.app`
+  * Pull Request \#1: `HTTPs://app-git-feature-login-xyz.vercel.app`
+  * Pull Request \#2: `HTTPs://app-git-fix-typo-abc.vercel.app`
 
 **The Logic:** The backend needs to allow the frontend team to test their work. The URLs change every hour and are random.
 **The Trap:** Writing a Regular Expression to match `*.vercel.app` feels complex or "might break," so the developer just opens the gates to `true` to stop the frontend team from complaining about CORS errors during development.
@@ -175,7 +175,7 @@ In microservices or large teams, developers often run services on different loca
 
   * Dev A runs the frontend on `localhost:3000`
   * Dev B runs it on `localhost:8080`
-  * Dev C uses a tunneling tool like `ngrok` (`http://random-id.ngrok.io`) to demo to a client.
+  * Dev C uses a tunneling tool like `ngrok` (`HTTP://random-id.ngrok.io`) to demo to a client.
 
 **The Logic:** "I am tired of changing the CORS config every time I switch tools or ports."
 **The Trap:** The developer adds the "Permissive Policy" intending to keep it only for `Development` mode, but it accidentally gets promoted to `Production` because it was never flagged during code review.
@@ -208,8 +208,8 @@ But, things are getting complicated. for the cookie to be sent as header they ha
 and we don't want that JWT along with the claims will be saved in the client. so BFF joined the scene. and now the cookies come back along with CSRF.
 
 ## CSRF And BFF Code
-After the login, we have a session cookie. and this cookie is configured as same site=strict. meaning, it will not be sent by the browser in a case of http request is triggered from another website.
-even if it's a get request it will not be send.
+After the login, we have a session cookie. and this cookie is configured as same site=strict. meaning, it will not be sent by the browser in a case of HTTP request is triggered from another website.
+even if it's a get request it will not be sent.
 if we choose samesite=lax, the cookie will be sent by the browser when a get request will be triggered by another website, but not in a case of post.
 so CSRF is not possible, excluding the cases where get request was used for changing data which is wrong.
 
@@ -217,14 +217,14 @@ So the only thing that was left vulnerable is the login. remeber? we have no ses
 
 **Attack Demostraion:**
 
-1. Go to the angular https://localhost:4200 
+1. Go to the angular HTTPs://localhost:4200 
 2. Login 
 3. Go to recipes
 4. Copy the url 
 5. Delete the cookie,
 6. Refresh the browser to see there is no recipes anymore
 7. Create the html page below 
-8. Using an host of your choice for example python http server and go to the poc you created. 
+8. Using an host of your choice for example python HTTP server and go to the poc you created. 
 
 ```html
 <!DOCTYPE html>
@@ -241,8 +241,8 @@ So the only thing that was left vulnerable is the login. remeber? we have no ses
 
     <script>
         function executeLogin() {
-            const url = 'https://localhost:4200/bff/account/login';
-            const targetPage = 'https://localhost:4200/recipes';
+            const url = 'HTTPs://localhost:4200/bff/account/login';
+            const targetPage = 'HTTPs://localhost:4200/recipes';
             
             document.getElementById('status').innerText = "Attempting login...";
 
@@ -287,7 +287,7 @@ So the only thing that was left vulnerable is the login. remeber? we have no ses
 </html>
 ```
 ```bash
- python -m http.server 5555
+ python -m HTTP.server 5555
 ```
 
 This logs the victim into the **attacker's account**, potentially causing them to enter sensitive data into the attacker's account.
@@ -319,7 +319,7 @@ app.Use(async (context, next) =>
     context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!, 
         new CookieOptions
         {
-            HttpOnly = false, // CRITICAL: Angular must be able to read this
+            HTTPOnly = false, // CRITICAL: Angular must be able to read this
             Secure = true, 
             SameSite = SameSiteMode.Strict
         });
@@ -332,8 +332,8 @@ app.Use(async (context, next) =>
 [ValidateAntiForgeryToken]
 public async Task<IActionResult> Login([FromBody] LoginRequest req, IAntiforgery antiforgery)
     {
-        var http = HttpContext; 
-        // await antiforgery.ValidateRequestAsync(http);
+        var HTTP = HTTPContext; 
+        // await antiforgery.ValidateRequestAsync(HTTP);
         
 ```
 
@@ -346,14 +346,14 @@ The antiforgery cookie token and request token do not match.
 
 Frontend must include token
 
-Create a csrf interceptor: csrf.interceptor.ts
+Create a CSRF interceptor: CSRF.interceptor.ts
 
 ```javascript
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HTTPInterceptorFn } from '@angular/common/HTTP';
 import { inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 
-export const csrfInterceptor: HttpInterceptorFn = (req, next) => {
+export const CSRFInterceptor: HTTPInterceptorFn = (req, next) => {
   // 1. Inject the document to access cookies safely
   const document = inject(DOCUMENT);
   
@@ -397,7 +397,7 @@ export const appConfig: ApplicationConfig = {
    ...
 withInterceptors([
         credentialsInterceptor, 
-        csrfInterceptor // <--- Add it here
+        CSRFInterceptor // <--- Add it here
       ])
    ...
 ```
@@ -420,7 +420,7 @@ People call basic **double-submit** “not enough” because the simplest versio
 
 * **Cookie scoping mistakes are common:** Setting CSRF cookie with `Domain=.example.com` or broad `Path=/` increases the chance another subdomain/app can set/override it. That turns your “secret handshake” into something other apps can forge.
 
-* **It does not help against XSS:** If your Angular app has XSS, JS can read the cookie (if not `HttpOnly`) and set the header, so CSRF protection becomes irrelevant. People dislike relying on patterns that “work unless XSS”, because XSS is common.
+* **It does not help against XSS:** If your Angular app has XSS, JS can read the cookie (if not `HTTPOnly`) and set the header, so CSRF protection becomes irrelevant. People dislike relying on patterns that “work unless XSS”, because XSS is common.
 
 * **CORS / endpoint leaks can erase the benefit:** If you expose the CSRF token via an endpoint and accidentally allow cross-origin reads (bad CORS), an attacker can fetch the token and then forge requests.
 
@@ -467,7 +467,7 @@ Before the user even types their password, the security setup begins.
 * **Browser:** Requests the Angular app (or performs a GET request to the API).
 * **.NET Server:** Your middleware runs. It generates a random, cryptographically strong token (e.g., `abc-123-secret`).
 * **.NET Server:** Sends this token to the browser in a **readable cookie** named `XSRF-TOKEN`.
-    * *Note: This is why we set `HttpOnly = false`. Angular needs to read it.*
+    * *Note: This is why we set `HTTPOnly = false`. Angular needs to read it.*
 
 #### 2. The Angular Client (The Interceptor)
 When the user clicks "Login":
@@ -504,7 +504,7 @@ The "Double-Submit" works because **only your specific domain** has the permissi
 ### Lets try the attack again!
 
 Go back to Attack Demostration and try to run the CSRF attack!
-if you follow the tutorial, you'll see in the log the same exception we got before we implemented the angular csrf protection. 
+if you follow the tutorial, you'll see in the log the same exception we got before we implemented the angular CSRF protection. 
 
 ## Summary
 
