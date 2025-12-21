@@ -2,7 +2,12 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
    <meta charset="UTF-8">
+   <meta name="_csrf" th:content="${_csrf.token}">
+   <meta name="_csrf_header" th:content="${_csrf.headerName}">
+
    <title th:text="${task.id != null} ? 'Edit Task' : 'New Task'">Task Form</title>
+
+   <script th:src="|https://cdn.tiny.cloud/1/${tinymceApiKey}/tinymce/6/tinymce.min.js|" referrerpolicy="origin"></script>
 </head>
 <body>
 <h1 th:text="${task.id != null} ? 'Edit Task' : 'New Task'">Task Form</h1>
@@ -10,7 +15,7 @@
 <form th:object="${task}"
       th:action="${task.id != null} ? @{/tasks/{id}(id=${task.id})} : @{/tasks}"
       method="post">
-   
+
    <div>
       <label for="name">Name:</label>
       <input type="text" id="name" th:field="*{name}" />
@@ -44,5 +49,41 @@
    <button type="submit">Save</button>
    <a th:href="@{/tasks}">Cancel</a>
 </form>
+
+<script>
+    const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+    tinymce.init({
+        selector: '#description',
+        plugins: 'link lists code image',
+        toolbar: 'undo redo | bold italic | bullist numlist | link image | code',
+        images_file_types: 'jpeg,jpg,png,gif,webp,svg',
+
+
+        images_upload_handler: function (blobInfo) {
+            return new Promise(function (resolve, reject) {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/images/editor-images');
+                xhr.setRequestHeader(csrfHeader, csrfToken);
+
+                xhr.onload = function () {
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        reject('HTTP ' + xhr.status);
+                        return;
+                    }
+                    const json = JSON.parse(xhr.responseText);
+                    resolve(json.location);
+                };
+
+                const formData = new FormData();
+                formData.append('file', blobInfo.blob(), blobInfo.filename());
+                xhr.send(formData);
+            });
+        }
+    });
+</script>
+
+
 </body>
 </html>

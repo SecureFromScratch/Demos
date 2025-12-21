@@ -5,6 +5,7 @@ import com.example.demo.model.Task;
 import com.example.demo.model.TaskStatus;
 import com.example.demo.service.TaskService;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,9 +16,16 @@ import org.springframework.web.bind.annotation.*;
 public class TaskController {
 
    private final TaskService service;
+   private final String tinymceApiKey;
 
-   public TaskController(TaskService service) {
+
+   public TaskController(
+      TaskService service,
+
+      @Value("${tinymce.api-key:}") String tinymceApiKey) {
       this.service = service;
+      this.tinymceApiKey = tinymceApiKey;
+
    }
 
    @GetMapping
@@ -30,6 +38,8 @@ public class TaskController {
    public String createForm(Model model) {
       model.addAttribute("task", new Task());
       model.addAttribute("statuses", TaskStatus.values());
+      model.addAttribute("tinymceApiKey", tinymceApiKey);
+
       return "tasks/form";
    }
 
@@ -43,6 +53,8 @@ public class TaskController {
    public String editForm(@PathVariable Long id, Model model) {
       model.addAttribute("task", service.findById(id));
       model.addAttribute("statuses", TaskStatus.values());
+      model.addAttribute("tinymceApiKey", tinymceApiKey);
+
       return "tasks/form";
    }
 
