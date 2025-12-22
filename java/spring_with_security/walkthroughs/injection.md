@@ -1,3 +1,17 @@
+# Injcection
+
+There many types of injection 
+
+## xss
+if you try to inject scripts into tinymce there will be a problme, 
+but if you enter script to the name it will come through.
+why?
+
+## template injection
+
+
+
+
 https://claude.ai/share/91325285-fab9-4d09-a481-f47e44d0db1d
 
 ssti on description - xss

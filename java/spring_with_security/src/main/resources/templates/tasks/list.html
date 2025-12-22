@@ -27,7 +27,8 @@
    <tbody>
    <tr th:each="task : ${tasks}">
       <td th:text="${task.id}"></td>
-      <td th:utext="${task.name}"></td>
+      <!--td th:utext="${task.name}"></td-->
+      <td>[(${task.name})]</td>          <!-- Unescaped inlining syntax -->
       <td th:utext="${task.description}"></td>
       <td th:text="${task.createdBy}"></td>
       <td th:text="${task.assignTo}"></td>
