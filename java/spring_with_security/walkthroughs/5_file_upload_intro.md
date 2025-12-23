@@ -57,15 +57,6 @@ Uploading means you are accepting **untrusted bytes** that might:
 * Treat risky formats (Office, archives, HTML/SVG) as higher risk or disallow.
 * For PDFs and images: avoid “just trust it”, parse in a sandbox if you must.
 
-### 7) Safe download/serving
-
-* When serving back:
-
-  * Set `Content-Disposition: attachment` (for most cases).
-  * Set correct `Content-Type` based on validated type.
-  * Add `X-Content-Type-Options: nosniff`.
-  * Use strict CSP if anything might render in-browser.
-
 ### 8) Processing architecture
 
 * Prefer: **upload → store raw → queue job → async processing in sandbox → store sanitized version**

@@ -37,7 +37,9 @@ A few adaptations were made for supporting swagger interface
 3. **`@Operation` and `@Parameter` annotations** - Properly documents the API for Swagger UI
 4. **Added springdoc-openapi dependency** - Provides better OpenAPI 3.0 support
 
-        
-Use Sandbox 
-        
+## Security 
+
+### Prevent path traversal with Sandbox         
 BoxedPath filePath = PathSandbox.boxroot(uploadPath).resolve(fileName);
+
+### Check Secure controls mention in the previous tutorial
