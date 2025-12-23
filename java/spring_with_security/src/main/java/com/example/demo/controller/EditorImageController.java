@@ -73,7 +73,7 @@ public class EditorImageController {
         return ResponseEntity.created(URI.create(publicUrl)).body(Map.of("location", publicUrl));
     }
 
-    @GetMapping("/media/{name}")
+    @GetMapping("/media1/{name}")
     public ResponseEntity<Resource> get(@PathVariable String name) throws IOException {
         String fileName = StringUtils.cleanPath(name);
         if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {

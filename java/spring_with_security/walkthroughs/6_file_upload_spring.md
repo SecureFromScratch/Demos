@@ -36,3 +36,8 @@ A few adaptations were made for supporting swagger interface
 2. **`consumes = MediaType.MULTIPART_FORM_DATA_VALUE`** - Explicitly tells Swagger this endpoint accepts multipart data
 3. **`@Operation` and `@Parameter` annotations** - Properly documents the API for Swagger UI
 4. **Added springdoc-openapi dependency** - Provides better OpenAPI 3.0 support
+
+        
+Use Sandbox 
+        
+BoxedPath filePath = PathSandbox.boxroot(uploadPath).resolve(fileName);

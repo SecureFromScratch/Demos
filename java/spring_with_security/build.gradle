@@ -34,6 +34,9 @@ dependencies {
    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
 
    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0"
+   implementation "io.github.owasp-untrust:untrust-boxedpath:0.3"
+
+
 
 
 }

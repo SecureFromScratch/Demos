@@ -64,7 +64,8 @@
         images_upload_handler: function (blobInfo) {
             return new Promise(function (resolve, reject) {
                 const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/images/editor-images');
+                //xhr.open('POST', '/images/editor-images');
+                xhr.open('POST', '/upload');
                 xhr.setRequestHeader(csrfHeader, csrfToken);
 
                 xhr.onload = function () {
