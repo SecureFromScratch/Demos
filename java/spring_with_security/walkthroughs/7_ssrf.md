@@ -203,7 +203,7 @@ If any step fails, **abort**.
 
 ---
 
-## One-line rule for developers
+## One-line rule
 
 > If user input can influence where the server connects, you must either remove that control or strictly constrain it before the request is made.
 
