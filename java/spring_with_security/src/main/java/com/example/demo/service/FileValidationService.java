@@ -5,6 +5,7 @@ import org.owasp.untrust.boxedpath.PathSandbox;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -15,35 +16,34 @@ public class FileValidationService {
 
     // Allowed extensions
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-        "pdf", "jpg", "png", "gif"
-    );
+            "pdf", "jpg", "png", "gif");
 
     // Magic bytes for common file types
     private static final Map<String, byte[]> MAGIC_BYTES = new HashMap<>();
-    
+
     static {
-        MAGIC_BYTES.put("pdf", new byte[]{0x25, 0x50, 0x44, 0x46}); // %PDF
-        MAGIC_BYTES.put("jpg", new byte[]{(byte)0xFF, (byte)0xD8, (byte)0xFF});
-        MAGIC_BYTES.put("png", new byte[]{(byte)0x89, 0x50, 0x4E, 0x47});
-        MAGIC_BYTES.put("gif", new byte[]{0x47, 0x49, 0x46, 0x38}); // GIF8        
+        MAGIC_BYTES.put("pdf", new byte[] { 0x25, 0x50, 0x44, 0x46 }); // %PDF
+        MAGIC_BYTES.put("jpg", new byte[] { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF });
+        MAGIC_BYTES.put("png", new byte[] { (byte) 0x89, 0x50, 0x4E, 0x47 });
+        MAGIC_BYTES.put("gif", new byte[] { 0x47, 0x49, 0x46, 0x38 }); // GIF8
     }
 
     public ValidationResult validateFile(MultipartFile file, Path uploadPath) {
         String fileName = file.getOriginalFilename();
-        
+
         if (fileName == null || fileName.isEmpty()) {
             return ValidationResult.error("Filename is empty");
         }
 
         // 1. Check for path traversal
-        //if (containsPathTraversal(fileName)) {
-        //    return ValidationResult.error("Invalid filename: path traversal detected");
-        //}
-        // BoxedPath filePath = PathSandbox.boxroot(uploadPath).resolve(fileName);
-        // String sanitizedName = filePath.toString();
+        // if (containsPathTraversal(fileName)) {
+        // return ValidationResult.error("Invalid filename: path traversal detected");
+        // }
+        BoxedPath filePath = PathSandbox.boxroot(uploadPath).resolve(fileName);
+        String sanitizedName = filePath.toString();
 
         // 2. Check extension
-        String extension = getFileExtension(fileName).toLowerCase();
+        String extension = getFileExtension(sanitizedName).toLowerCase();
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             return ValidationResult.error("File type not allowed: " + extension);
         }
@@ -59,7 +59,6 @@ public class FileValidationService {
 
         return ValidationResult.success(fileName, extension);
     }
-    
 
     private String getFileExtension(String filename) {
         int lastDot = filename.lastIndexOf('.');
@@ -70,31 +69,34 @@ public class FileValidationService {
     }
 
     private boolean verifyMagicBytes(MultipartFile file, String extension) throws IOException {
-        // Skip validation for text files (no reliable magic bytes)
-        if ("txt".equals(extension)) {
-            return true;
+        if (file == null || file.isEmpty()) {
+            return false;
+        }
+        if (extension == null) {
+            return false;
         }
 
-        // Skip validation for old Office formats (complex headers)
-        if ("doc".equals(extension) || "xls".equals(extension)) {
-            return true;
+        String ext = extension.trim().toLowerCase(Locale.ROOT);
+
+        // Allow only extensions that we have magic bytes for
+        byte[] expected = MAGIC_BYTES.get(ext);
+        if (expected == null) {
+            return false;
         }
 
-        byte[] expectedMagic = MAGIC_BYTES.get(extension);
-        if (expectedMagic == null) {
-            return true; // No magic bytes defined, allow
-        }
-
-        try (InputStream is = file.getInputStream()) {
-            byte[] fileHeader = new byte[expectedMagic.length];
-            int bytesRead = is.read(fileHeader);
-            
-            if (bytesRead < expectedMagic.length) {
-                return false;
+        byte[] actual = new byte[expected.length];
+        try (InputStream is = new BufferedInputStream(file.getInputStream())) {
+            int offset = 0;
+            while (offset < actual.length) {
+                int n = is.read(actual, offset, actual.length - offset);
+                if (n == -1) {
+                    return false;
+                }
+                offset += n;
             }
-
-            return Arrays.equals(fileHeader, expectedMagic);
         }
+
+        return Arrays.equals(actual, expected);
     }
 
     public static class ValidationResult {
@@ -108,7 +110,7 @@ public class FileValidationService {
             this.message = message;
             this.sanitizedFilename = sanitizedFilename;
             this.extension = extension;
-            
+
         }
 
         public static ValidationResult success(String sanitizedFilename, String extension) {
@@ -116,7 +118,7 @@ public class FileValidationService {
         }
 
         public static ValidationResult error(String message) {
-            return new ValidationResult(false, message, null,null);
+            return new ValidationResult(false, message, null, null);
         }
 
         public boolean isValid() {
