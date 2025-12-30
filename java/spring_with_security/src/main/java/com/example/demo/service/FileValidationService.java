@@ -15,7 +15,7 @@ public class FileValidationService {
 
     // Allowed extensions
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-        "pdf", "jpg", "jpeg", "png"
+        "pdf", "jpg", "png", "gif"
     );
 
     // Magic bytes for common file types
