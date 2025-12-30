@@ -26,9 +26,13 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
+import org.springframework.core.annotation.Order;
+
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@Order(1)  // Add this
 public class SecurityConfig {
 
     @Value("${jwt.secret}")
@@ -74,7 +78,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/account/is-first-user",
-                    "/api/account/setup",
+                    "/api/account/setup",                    
                     "/api/account/register",
                     "/api/account/login",
                     "/swagger-ui/**",

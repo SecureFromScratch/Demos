@@ -10,11 +10,12 @@ public class AppUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+
+    @Column(name = "username", unique = true, nullable = false)
     private String userName;
 
     @Column(nullable = false)
-    private String passwordHash;
+    private String password;
 
     @Column(nullable = false)
     private String roles;
@@ -26,9 +27,9 @@ public class AppUser {
     public AppUser() {
     }
 
-    public AppUser(String userName, String passwordHash, String roles, boolean enabled) {
+    public AppUser(String userName, String password, String roles, boolean enabled) {
         this.userName = userName;
-        this.passwordHash = passwordHash;
+        this.password = password;
         this.roles = roles;
         this.enabled = enabled;
     }
@@ -50,12 +51,12 @@ public class AppUser {
         this.userName = userName;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
+    public String getPassword() {
+        return password;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public String getRoles() {

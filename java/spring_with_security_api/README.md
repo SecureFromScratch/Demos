@@ -193,3 +193,19 @@ docker-compose logs postgres
 # Make sure .env file exists and contains JWT_SECRET
 cat .env | grep JWT_SECRET
 ```
+
+
+
+## cheats
+```
+docker exec -it spring-security-postgres psql -U appuser -d appdb
+```
+
+```
+curl -X POST http://localhost:8082/api/account/setup   -H "Content-Type: application/json"   -d '{"userName":"admin","password":"Admin123!"}'
+```
+```
+curl -X POST http://localhost:8082/api/account/login \
+  -H "Content-Type: application/json" \
+  -d '{"userName":"admin","password":"Admin123!"}'
+```

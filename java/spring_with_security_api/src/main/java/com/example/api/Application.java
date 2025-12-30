@@ -17,7 +17,7 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 
-    @Bean
+    /*@Bean
     public ApplicationListener<ApplicationReadyEvent> dataSeeder(
             AppDbContext dbContext,
             TasksSeedData tasksSeedData) {
@@ -31,5 +31,5 @@ public class Application {
                 logger.error("Error during database seeding", e);
             }
         };
-    }
+    }*/
 }

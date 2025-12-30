@@ -71,7 +71,7 @@ public class UserService implements IUserService {
         user.setUserName(userName);
         user.setRoles(isAdmin ? "ADMIN,USER" : "USER");
         user.setEnabled(true);
-        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setPassword(passwordEncoder.encode(rawPassword));
 
         return userRepository.save(user);
     }
@@ -92,6 +92,6 @@ public class UserService implements IUserService {
 
     @Override
     public boolean verifyPassword(AppUser user, String rawPassword) {
-        return passwordEncoder.matches(rawPassword, user.getPasswordHash());
+        return passwordEncoder.matches(rawPassword, user.getPassword());
     }
 }
