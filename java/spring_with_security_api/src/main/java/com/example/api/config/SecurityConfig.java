@@ -85,6 +85,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/swagger-config"
                                 )
                         .permitAll()
+                        .requestMatchers("/api/recipes/**").authenticated()  // Requires JWT token
+
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
