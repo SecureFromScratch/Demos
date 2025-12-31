@@ -197,6 +197,12 @@ cat .env | grep JWT_SECRET
 
 
 ## cheats
+
+Running
+```
+infisical run --env=dev --projectId 4027f1c4-9559-408f-8538-407a392d1479 -- ./gradlew bootRun --debug-jvm
+```
+
 ```
 docker exec -it spring-security-postgres psql -U appuser -d appdb
 ```
@@ -204,8 +210,25 @@ docker exec -it spring-security-postgres psql -U appuser -d appdb
 ```
 curl -X POST http://localhost:8082/api/account/setup   -H "Content-Type: application/json"   -d '{"userName":"admin","password":"Admin123!"}'
 ```
+
+```
+curl -X POST http://localhost:8082/api/account/setup   -H "Content-Type: application/json"   -d '{"userName":"QA1","password":"ChangeMe123!"}'
+```
+
 ```
 curl -X POST http://localhost:8082/api/account/login \
   -H "Content-Type: application/json" \
   -d '{"userName":"admin","password":"Admin123!"}'
+```
+
+```
+curl -X POST http://localhost:8082/api/account/login \
+  -H "Content-Type: application/json" \
+  -d '{"userName":"QA1","password":"ChangeMe123!"}'
+```
+
+
+swagger
+```
+http://localhost:8082/swagger-ui/index.html
 ```

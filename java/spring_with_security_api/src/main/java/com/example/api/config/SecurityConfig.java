@@ -28,11 +28,10 @@ import java.util.List;
 
 import org.springframework.core.annotation.Order;
 
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@Order(1)  // Add this
+@Order(1) // Add this
 public class SecurityConfig {
 
     @Value("${jwt.secret}")
@@ -69,40 +68,27 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthFilter) throws Exception {
-        
+
         http
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/api/account/is-first-user",
-                    "/api/account/setup",                    
-                    "/api/account/register",
-                    "/api/account/login",
-                    "/swagger-ui/**",
-                    "/v3/api-docs/**",
-                    "/uploads/**"
-                ).permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/api/account/is-first-user",
+                                "/api/account/setup",
+                                "/api/account/register",
+                                "/api/account/login",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/uploads/**",
+                                "/swagger-ui.html",                                
+                                "/v3/api-docs/swagger-config"
+                                )
+                        .permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:4200"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
     }
 
     public static class JwtTokenProvider {
