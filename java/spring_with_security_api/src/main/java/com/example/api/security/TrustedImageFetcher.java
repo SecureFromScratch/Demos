@@ -15,7 +15,6 @@ import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -27,14 +26,21 @@ import com.example.api.config.SecurityProperties;
 @Component
 public final class TrustedImageFetcher {
 
-    private  final long MAX_BYTES = 10L * 1024L * 1024L; // 10 MB
+    //private  final long MAX_BYTES = 10L * 1024L * 1024L; // 10 MB
+    private long maxBytes;
+
 
     private final Set<String> trustedDomains;
 
     private final OkHttpClient client;
 
      public TrustedImageFetcher(SecurityProperties props) {
-        this.trustedDomains = Set.copyOf(props.getTrustedDomains());
+        this.maxBytes =  props.getMaxUploadBytes(); ;
+        //this.trustedDomains = Set.copyOf(props.getTrustedDomains());
+        this.trustedDomains = props.getTrustedDomains().stream()
+        .filter(s -> s != null && !s.isBlank())
+        .map(s -> s.trim().toLowerCase(Locale.ROOT))
+        .collect(java.util.stream.Collectors.toUnmodifiableSet());
         this.client = new OkHttpClient.Builder()
                 .followRedirects(false)
                 .followSslRedirects(false)
@@ -72,7 +78,7 @@ public final class TrustedImageFetcher {
             }
 
             long len = resp.body() != null ? resp.body().contentLength() : -1L;
-            if (len > MAX_BYTES) {
+            if (len > maxBytes) {
                 throw new IllegalArgumentException("Image too large");
             }
 
@@ -84,7 +90,7 @@ public final class TrustedImageFetcher {
             if (bytes.length == 0) {
                 throw new IllegalArgumentException("Empty image");
             }
-            if (bytes.length > MAX_BYTES) {
+            if (bytes.length > maxBytes) {
                 throw new IllegalArgumentException("Image too large");
             }
 

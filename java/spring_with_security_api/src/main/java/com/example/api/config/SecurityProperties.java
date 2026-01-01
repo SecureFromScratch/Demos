@@ -10,12 +10,25 @@ import java.util.Set;
 public class SecurityProperties {
 
     private Set<String> trustedDomains;
+    private long maxBytes = 0; 
+
 
     public Set<String> getTrustedDomains() {
         return trustedDomains;
-    }
+    }   
 
     public void setTrustedDomains(Set<String> trustedDomains) {
         this.trustedDomains = trustedDomains;
     }
+
+    public long getMaxUploadBytes() {
+        return maxBytes;
+    }   
+
+    public void setMaxUploadBytes(long maxBytes) {
+        this.maxBytes = maxBytes;
+    }
+
+
+    
 }
