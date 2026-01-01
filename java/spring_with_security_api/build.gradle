@@ -44,7 +44,10 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     // Safe file upload
-       implementation "io.github.owasp-untrust:untrust-boxedpath:0.3"
+    implementation "io.github.owasp-untrust:untrust-boxedpath:0.3"
+    //ssrf
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+
 
 
 
