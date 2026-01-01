@@ -1,6 +1,8 @@
 package com.example.api.dto;
 
 import com.example.api.models.Recipe.RecipeStatus;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -24,6 +26,7 @@ public class RecipeRequest {
     @Size(max = 5000, message = "Description must not exceed 5000 characters")
     private String description;
     
+    @Schema(hidden = true)
     private RecipeStatus status;
     
     private String imageUrl;
