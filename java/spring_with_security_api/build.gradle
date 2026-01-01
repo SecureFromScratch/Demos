@@ -42,6 +42,12 @@ dependencies {
     // Lombok (Optional - reduces boilerplate)
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // Safe file upload
+       implementation "io.github.owasp-untrust:untrust-boxedpath:0.3"
+
+
+
     
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
