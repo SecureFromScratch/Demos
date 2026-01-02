@@ -40,10 +40,9 @@ public class FileValidationService {
         // return ValidationResult.error("Invalid filename: path traversal detected");
         // }
         BoxedPath filePath = PathSandbox.boxroot(uploadPath).resolve(fileName);
-        String sanitizedName = filePath.toString();
 
         // 2. Check extension
-        String extension = getFileExtension(sanitizedName).toLowerCase();
+        String extension = getFileExtension(filePath).toLowerCase();
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             return ValidationResult.error("File type not allowed: " + extension);
         }
@@ -57,10 +56,11 @@ public class FileValidationService {
             return ValidationResult.error("Failed to read file content");
         }
 
-        return ValidationResult.success(fileName, extension);
+        return ValidationResult.success(filePath, extension);
     }
 
-    private String getFileExtension(String filename) {
+    private String getFileExtension(Path filepath) {
+        String filename = filepath.getFileName().toString();
         int lastDot = filename.lastIndexOf('.');
         if (lastDot > 0 && lastDot < filename.length() - 1) {
             return filename.substring(lastDot + 1);
@@ -102,19 +102,19 @@ public class FileValidationService {
     public static class ValidationResult {
         private final boolean valid;
         private final String message;
-        private final String sanitizedFilename;
+        private final BoxedPath filepath;
         private final String extension;
 
-        private ValidationResult(boolean valid, String message, String sanitizedFilename, String extension) {
+        private ValidationResult(boolean valid, String message, BoxedPath filepath, String extension) {
             this.valid = valid;
             this.message = message;
-            this.sanitizedFilename = sanitizedFilename;
+            this.filepath = filepath;
             this.extension = extension;
 
         }
 
-        public static ValidationResult success(String sanitizedFilename, String extension) {
-            return new ValidationResult(true, "Valid", sanitizedFilename, extension);
+        public static ValidationResult success(BoxedPath filepath, String extension) {
+            return new ValidationResult(true, "Valid", filepath, extension);
         }
 
         public static ValidationResult error(String message) {
@@ -129,8 +129,8 @@ public class FileValidationService {
             return message;
         }
 
-        public String getSanitizedFilename() {
-            return sanitizedFilename;
+        public BoxedPath getFilepath() {
+            return filepath;
         }
 
         public String getExtension() {
