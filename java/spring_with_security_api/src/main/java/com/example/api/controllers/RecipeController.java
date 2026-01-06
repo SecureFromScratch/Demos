@@ -13,7 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -174,4 +177,107 @@ public class RecipeController {
             throw new IllegalArgumentException("File must be an image");
         }
     }
+
+    // Import recipes from CSV
+    @PostMapping(value = "/import-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @io.swagger.v3.oas.annotations.Operation(summary = "Import recipes from CSV file")
+    public ResponseEntity<Map<String, Object>> importRecipesFromCsv(
+            @RequestPart("file") MultipartFile file) {
+
+        validateCsvFile(file);
+
+        try {
+            List<RecipeResponse> importedRecipes = new ArrayList<>();
+            List<String> errors = new ArrayList<>();
+            int lineNumber = 0;
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(file.getInputStream()))) {
+
+                String line;
+                // Skip header line
+                reader.readLine();
+                lineNumber++;
+
+                while ((line = reader.readLine()) != null) {
+                    lineNumber++;
+
+                    if (line.trim().isEmpty()) {
+                        continue;
+                    }
+
+                    try {
+                        RecipeRequest request = parseCsvLine(line);
+                        RecipeResponse response = recipeService.createRecipe(request);
+                        importedRecipes.add(response);
+                    } catch (Exception e) {
+                        errors.add("Line " + lineNumber + ": " + e.getMessage());
+                    }
+                }
+            }
+
+            Map<String, Object> result = Map.of(
+                    "message", "CSV import completed",
+                    "imported", importedRecipes.size(),
+                    "errors", errors.size(),
+                    "errorDetails", errors,
+                    "recipes", importedRecipes);
+
+            return ResponseEntity.ok(result);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read CSV file: " + e.getMessage(), e);
+        }
+    }
+
+    private void validateCsvFile(MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("CSV file is empty");
+        }
+        String contentType = file.getContentType();
+        String filename = file.getOriginalFilename();
+
+        if ((contentType == null || !contentType.equals("text/csv"))
+                && (filename == null || !filename.endsWith(".csv"))) {
+            throw new IllegalArgumentException("File must be a CSV file");
+        }
+    }
+
+    private RecipeRequest parseCsvLine(String line) {
+        // Simple CSV parser - handles basic comma-separated values
+        // For production use, consider using a CSV library like Apache Commons CSV or
+        // OpenCSV
+        String[] parts = line.split(",", -1);
+
+        if (parts.length < 1) {
+            throw new IllegalArgumentException("Invalid CSV format: missing name");
+        }
+
+        String name = parts[0].trim();
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("Recipe name cannot be empty");
+        }
+
+        String description = parts.length > 1 ? parts[1].trim() : "";
+        String statusStr = parts.length > 2 ? parts[2].trim() : "NEW";
+        String imageUrl = parts.length > 3 ? parts[3].trim() : null;
+
+        RecipeStatus status = parseStatus(statusStr);
+
+        RecipeRequest.RecipeRequestBuilder builder = RecipeRequest.builder()
+                .name(name)
+                .description(description.isEmpty() ? null : description)
+                .status(status);
+
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            try {
+                builder.imageUrl(recipeService.uploadImageFromUrl(imageUrl));
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to upload image from URL: " + e.getMessage());
+            }
+        }
+
+        return builder.build();
+    }
+
 }

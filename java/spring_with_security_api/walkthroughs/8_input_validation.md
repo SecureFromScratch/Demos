@@ -459,420 +459,9 @@ public class RecipeService {
 
 ---
 
-## Layer 3: Controller-Level Validation
+## Layer 3: Controller-Level & Service-Level Validation
 
-Controller validation handles request-specific concerns like file uploads, headers, and query parameters.
-
-### File Upload Validation
-
-```java
-@RestController
-@RequestMapping("/api/recipes")
-@RequiredArgsConstructor
-public class RecipeController {
-
-    private final RecipeService recipeService;
-    private final InputValidator inputValidator;
-    
-    // Configuration (could be in application.properties)
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
-        "image/jpeg", "image/png", "image/gif", "image/webp"
-    );
-
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<RecipeResponse> createRecipeWithFile(
-            @RequestPart("name") String name,
-            @RequestPart(value = "description", required = false) String description,
-            @RequestPart(value = "file", required = false) MultipartFile file) {
-        
-        // Validate name
-        name = inputValidator.validateAndSanitize(name, "Recipe name");
-        
-        // Validate description
-        if (description != null && !description.isEmpty()) {
-            description = inputValidator.validateAndSanitize(description, "Description");
-        }
-        
-        // Validate file if provided
-        if (file != null && !file.isEmpty()) {
-            validateImageFile(file);
-        }
-        
-        RecipeRequest request = RecipeRequest.builder()
-                .name(name)
-                .description(description)
-                .status(RecipeStatus.NEW)
-                .build();
-        
-        if (file != null && !file.isEmpty()) {
-            String imageUrl = recipeService.uploadImage(file);
-            request.setImageUrl(imageUrl);
-        }
-        
-        RecipeResponse response = recipeService.createRecipe(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-    
-    /**
-     * Validates image file upload.
-     * Checks: file not empty, correct MIME type, size limit, file extension.
-     */
-    private void validateImageFile(MultipartFile file) {
-        // Check file is not empty
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("File is empty");
-        }
-        
-        // Check file size
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException(
-                String.format("File size exceeds maximum allowed size of %d MB", 
-                    MAX_FILE_SIZE / (1024 * 1024))
-            );
-        }
-        
-        // Check MIME type
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException(
-                "Invalid file type. Allowed types: " + ALLOWED_IMAGE_TYPES
-            );
-        }
-        
-        // Check file extension
-        String filename = file.getOriginalFilename();
-        if (filename == null || !hasValidImageExtension(filename)) {
-            throw new IllegalArgumentException(
-                "Invalid file extension. Allowed: .jpg, .jpeg, .png, .gif, .webp"
-            );
-        }
-    }
-    
-    private boolean hasValidImageExtension(String filename) {
-        String lower = filename.toLowerCase();
-        return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || 
-               lower.endsWith(".png") || lower.endsWith(".gif") || 
-               lower.endsWith(".webp");
-    }
-}
-```
-
-### CSV File Validation
-
-```java
-/**
- * Validates CSV file upload.
- */
-private void validateCsvFile(MultipartFile file) {
-    // Check file is not empty
-    if (file.isEmpty()) {
-        throw new IllegalArgumentException("CSV file is empty");
-    }
-    
-    // Check file size (5MB max)
-    if (file.getSize() > MAX_FILE_SIZE) {
-        throw new IllegalArgumentException("CSV file too large. Maximum size: 5MB");
-    }
-    
-    // Check MIME type
-    String contentType = file.getContentType();
-    String filename = file.getOriginalFilename();
-    
-    if ((contentType == null || !contentType.equals("text/csv")) 
-        && (filename == null || !filename.endsWith(".csv"))) {
-        throw new IllegalArgumentException("File must be a CSV file");
-    }
-    
-    // Optional: Check row count
-    try (BufferedReader reader = new BufferedReader(
-            new InputStreamReader(file.getInputStream()))) {
-        long lineCount = reader.lines().count();
-        if (lineCount > 1000) {
-            throw new IllegalArgumentException(
-                "CSV file too large. Maximum rows: 1000"
-            );
-        }
-    } catch (IOException e) {
-        throw new RuntimeException("Failed to validate CSV file", e);
-    }
-}
-```
-
----
-
-## Layer 4: Service-Level Validation
-
-Service layer handles business logic validation.
-
-```java
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class RecipeService {
-    
-    private final RecipeRepository recipeRepository;
-    private final InputValidator inputValidator;
-    
-    public RecipeResponse createRecipe(RecipeRequest request) {
-        // Security validation
-        String safeName = inputValidator.validateAndSanitize(
-            request.getName(), 
-            "Recipe name"
-        );
-        
-        String safeDescription = null;
-        if (request.getDescription() != null && !request.getDescription().isEmpty()) {
-            safeDescription = inputValidator.validateAndSanitize(
-                request.getDescription(),
-                "Description"
-            );
-        }
-        
-        // Business validation
-        validateBusinessRules(safeName, request);
-        
-        Recipe recipe = Recipe.builder()
-                .name(safeName)
-                .description(safeDescription)
-                .status(RecipeStatus.NEW)
-                .imageUrl(request.getImageUrl())
-                .build();
-        
-        Recipe saved = recipeRepository.save(recipe);
-        log.info("Created recipe: id={}, name={}", saved.getId(), saved.getName());
-        
-        return mapToResponse(saved);
-    }
-    
-    /**
-     * Business logic validation.
-     */
-    private void validateBusinessRules(String name, RecipeRequest request) {
-        // Check for duplicate names
-        if (recipeRepository.existsByNameIgnoreCase(name)) {
-            throw new DuplicateResourceException(
-                "Recipe with name '" + name + "' already exists"
-            );
-        }
-        
-        // Validate image URL if provided
-        if (request.getImageUrl() != null && !request.getImageUrl().isEmpty()) {
-            if (!inputValidator.isValidUrl(request.getImageUrl())) {
-                throw new IllegalArgumentException("Invalid image URL format");
-            }
-        }
-        
-        // Additional business rules...
-    }
-}
-```
-
----
-
-## CSV Import Validation
-
-CSV imports require special handling because they bypass Bean Validation.
-
-```java
-@PostMapping(value = "/import-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-public ResponseEntity<Map<String, Object>> importRecipesFromCsv(
-        @RequestPart("file") MultipartFile file) {
-    
-    validateCsvFile(file);
-    
-    try {
-        List<RecipeResponse> importedRecipes = new ArrayList<>();
-        List<String> errors = new ArrayList<>();
-        int lineNumber = 0;
-        
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(file.getInputStream()))) {
-            
-            String line;
-            // Read and validate header
-            String header = reader.readLine();
-            lineNumber++;
-            
-            if (header == null) {
-                throw new IllegalArgumentException("CSV file is empty");
-            }
-            
-            if (!header.trim().equals("name,description,imageUrl")) {
-                log.warn("Unexpected CSV header: {}", header);
-            }
-            
-            // Process each line
-            while ((line = reader.readLine()) != null) {
-                lineNumber++;
-                
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
-                
-                try {
-                    RecipeRequest request = parseCsvLine(line);
-                    RecipeResponse response = recipeService.createRecipe(request);
-                    importedRecipes.add(response);
-                } catch (Exception e) {
-                    String errorMsg = "Line " + lineNumber + ": " + e.getMessage();
-                    errors.add(errorMsg);
-                    log.error("CSV import error: {}", errorMsg);
-                }
-            }
-        }
-        
-        return ResponseEntity.ok(Map.of(
-            "message", "CSV import completed",
-            "imported", importedRecipes.size(),
-            "errors", errors.size(),
-            "errorDetails", errors,
-            "recipes", importedRecipes
-        ));
-        
-    } catch (IOException e) {
-        throw new RuntimeException("Failed to read CSV file", e);
-    }
-}
-
-/**
- * Parses CSV line with validation.
- * This is where we apply InputValidator for CSV imports.
- */
-private RecipeRequest parseCsvLine(String line) {
-    String[] parts = line.split(",", -1);
-    
-    if (parts.length < 1) {
-        throw new IllegalArgumentException("Invalid CSV format");
-    }
-    
-    String name = parts[0].trim();
-    if (name.isEmpty()) {
-        throw new IllegalArgumentException("Recipe name cannot be empty");
-    }
-    
-    // CRITICAL: Validate using allow-list approach
-    name = inputValidator.validateAndSanitize(name, "Recipe name");
-    
-    String description = parts.length > 1 ? parts[1].trim() : "";
-    if (!description.isEmpty()) {
-        description = inputValidator.validateAndSanitize(description, "Description");
-    }
-    
-    String imageUrl = parts.length > 2 ? parts[2].trim() : null;
-    
-    return RecipeRequest.builder()
-            .name(name)
-            .description(description.isEmpty() ? null : description)
-            .status(RecipeStatus.NEW)  // Always NEW for security
-            .imageUrl(imageUrl)
-            .build();
-}
-```
-
----
-
-## Multipart Form Validation
-
-Validating multipart form data requires manual parameter validation.
-
-```java
-@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-public ResponseEntity<RecipeResponse> createRecipeWithFile(
-        @RequestPart("name") String name,
-        @RequestPart(value = "description", required = false) String description,
-        @RequestPart(value = "file", required = false) MultipartFile file) {
-    
-    // Manual validation (Bean Validation doesn't work on @RequestPart String)
-    
-    // 1. Validate name
-    if (name == null || name.trim().isEmpty()) {
-        throw new IllegalArgumentException("Recipe name is required");
-    }
-    if (name.length() > 255) {
-        throw new IllegalArgumentException("Recipe name must be less than 255 characters");
-    }
-    name = inputValidator.validateAndSanitize(name, "Recipe name");
-    
-    // 2. Validate description
-    if (description != null && !description.isEmpty()) {
-        if (description.length() > 5000) {
-            throw new IllegalArgumentException("Description must be less than 5000 characters");
-        }
-        description = inputValidator.validateAndSanitize(description, "Description");
-    }
-    
-    // 3. Validate file
-    if (file != null && !file.isEmpty()) {
-        validateImageFile(file);
-    }
-    
-    // Build request and process
-    RecipeRequest request = RecipeRequest.builder()
-            .name(name)
-            .description(description)
-            .status(RecipeStatus.NEW)
-            .build();
-    
-    if (file != null && !file.isEmpty()) {
-        String imageUrl = recipeService.uploadImage(file);
-        request.setImageUrl(imageUrl);
-    }
-    
-    RecipeResponse response = recipeService.createRecipe(request);
-    return new ResponseEntity<>(response, HttpStatus.CREATED);
-}
-```
-
----
-
-## Query Parameter Validation
-
-Query parameters can also be validated.
-
-```java
-@RestController
-@RequestMapping("/api/recipes")
-@Validated  // Enable validation on method parameters
-@RequiredArgsConstructor
-public class RecipeController {
-
-    @GetMapping("/search")
-    public ResponseEntity<List<RecipeResponse>> searchRecipes(
-            @RequestParam 
-            @NotBlank(message = "Search query cannot be empty")
-            @Size(min = 1, max = 100, message = "Search query must be between 1 and 100 characters")
-            String query) {
-        
-        // Additional validation
-        String safeQuery = inputValidator.validateAndSanitize(query, "Search query");
-        
-        List<RecipeResponse> results = recipeService.searchRecipesByName(safeQuery);
-        return ResponseEntity.ok(results);
-    }
-    
-    @GetMapping("/{id}")
-    public ResponseEntity<RecipeResponse> getRecipeById(
-            @PathVariable 
-            @Positive(message = "Recipe ID must be positive")
-            Long id) {
-        
-        RecipeResponse recipe = recipeService.getRecipeById(id);
-        return ResponseEntity.ok(recipe);
-    }
-    
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<RecipeResponse> updateRecipeStatus(
-            @PathVariable @Positive Long id,
-            @RequestParam @NotNull RecipeStatus status) {
-        
-        RecipeResponse updated = recipeService.updateRecipeStatus(id, status);
-        return ResponseEntity.ok(updated);
-    }
-}
-```
-
-**Important:** Add `@Validated` annotation to the controller class to enable validation on method parameters.
+Controller validation handles request-specific concerns like file uploads, headers, and query parameters. Here the validation is according to the use cases, file upload, CSV, forms etc.
 
 ---
 
@@ -882,7 +471,7 @@ Create a global exception handler to return consistent error responses.
 
 Create `src/main/java/com/example/api/exception/GlobalExceptionHandler.java`:
 
-```java
+``` java
 package com.example.api.exception;
 
 import jakarta.validation.ConstraintViolation;
@@ -894,6 +483,12 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -906,9 +501,332 @@ public class GlobalExceptionHandler {
 
     /**
      * Handles Bean Validation errors from @Valid @RequestBody.
+     * This catches validation errors on DTOs/request objects.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationErrors(
             MethodArgumentNotValidException ex) {
         
-        Map<String, String> errors = new
+        Map<String, String> errors = new HashMap<>();
+        
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        
+        log.warn("Validation failed: {}", errors);
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Failed")
+                .message("Input validation error. Please check your request.")
+                .fieldErrors(errors)
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles validation errors from @Validated on method parameters.
+     * This catches validation errors on @PathVariable, @RequestParam, etc.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex) {
+        
+        Map<String, String> errors = ex.getConstraintViolations()
+                .stream()
+                .collect(Collectors.toMap(
+                    violation -> violation.getPropertyPath().toString(),
+                    ConstraintViolation::getMessage
+                ));
+        
+        log.warn("Constraint violation: {}", errors);
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Constraint Violation")
+                .message("Input validation error on request parameters.")
+                .fieldErrors(errors)
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles type mismatch errors (e.g., passing string where number expected).
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex) {
+        
+        String error = String.format("Parameter '%s' should be of type %s", 
+                ex.getName(), 
+                ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown");
+        
+        log.warn("Type mismatch: {}", error);
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Type Mismatch")
+                .message(error)
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles missing request parameters.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException ex) {
+        
+        String error = String.format("Required parameter '%s' is missing", ex.getParameterName());
+        
+        log.warn("Missing parameter: {}", error);
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Missing Parameter")
+                .message(error)
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles malformed JSON or unreadable request body.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex) {
+        
+        log.warn("Malformed JSON request: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Malformed JSON")
+                .message("Request body is malformed or contains invalid JSON.")
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles HTTP method not supported (e.g., POST when only GET is allowed).
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex) {
+        
+        String error = String.format("Method %s is not supported for this endpoint. Supported methods: %s",
+                ex.getMethod(),
+                ex.getSupportedHttpMethods());
+        
+        log.warn("Method not supported: {}", error);
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.METHOD_NOT_ALLOWED.value())
+                .error("Method Not Allowed")
+                .message(error)
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles unsupported media type (e.g., sending XML when only JSON is accepted).
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex) {
+        
+        String error = String.format("Media type %s is not supported. Supported types: %s",
+                ex.getContentType(),
+                ex.getSupportedMediaTypes());
+        
+        log.warn("Media type not supported: {}", error);
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value())
+                .error("Unsupported Media Type")
+                .message(error)
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles 404 Not Found errors.
+     */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            NoHandlerFoundException ex) {
+        
+        String error = String.format("Endpoint %s %s not found",
+                ex.getHttpMethod(),
+                ex.getRequestURL());
+        
+        log.warn("Endpoint not found: {}", error);
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(error)
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles custom business logic exceptions.
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException ex) {
+        
+        log.warn("Resource not found: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Resource Not Found")
+                .message(ex.getMessage())
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles custom business logic exceptions for conflicts.
+     */
+    @ExceptionHandler(ResourceAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleResourceAlreadyExists(
+            ResourceAlreadyExistsException ex) {
+        
+        log.warn("Resource already exists: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Resource Already Exists")
+                .message(ex.getMessage())
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(errorResponse);
+    }
+
+    /**
+     * Handles illegal argument exceptions.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex) {
+        
+        log.warn("Illegal argument: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Invalid Argument")
+                .message(ex.getMessage())
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errorResponse);
+    }
+
+    /**
+     * Catches all other unexpected exceptions.
+     * Important: Never expose internal error details to clients in production.
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
+        
+        log.error("Unexpected error occurred", ex);
+        
+        // Don't expose internal error details in production
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message("An unexpected error occurred. Please try again later.")
+                .build();
+        
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(errorResponse);
+    }
+}
+
+// ============================================
+// ERROR RESPONSE DTO
+// ============================================
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+class ErrorResponse {
+    private LocalDateTime timestamp;
+    private int status;
+    private String error;
+    private String message;
+    private Map<String, String> fieldErrors;
+    private String path;
+}
+
+// ============================================
+// CUSTOM EXCEPTIONS
+// ============================================
+
+class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+}
+
+class ResourceAlreadyExistsException extends RuntimeException {
+    public ResourceAlreadyExistsException(String message) {
+        super(message);
+    }
+}
+```
