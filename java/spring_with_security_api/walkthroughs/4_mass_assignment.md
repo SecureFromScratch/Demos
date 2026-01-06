@@ -112,6 +112,7 @@ This provides a **type-level guarantee**.
 * Reject unknown JSON fields at deserialization time
 * Never bind request bodies directly to domain entities
 * Treat documentation as informational, not protective
+* An additional attack vector could be a CSV import
 
 ---
 
