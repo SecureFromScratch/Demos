@@ -1,123 +1,144 @@
-
 # Authorization (ASP.NET Core)
 
-## Authorization models
+## Authorization models (conceptual)
 
-### 1. RBAC - Role Based Access Control
+### 1. RBAC – Role Based Access Control
 
-**Idea:** Users get roles, roles have permissions, so users gain permissions through their roles.
+**Idea:** Users are assigned roles. Roles grant access.
 
-**Core pieces:**
+**Examples**
 
-* Users
-* Roles, for example `User`, `Admin`
-* Permissions, for example `TaskRead`, `TaskDelete`
-* Role to permission mapping
+* Roles: `User`, `Admin`
+* Rules: “Admins can delete tasks”
 
-**Pros:**
+**Pros**
 
-* Easy to explain and manage for small to medium systems
-* Good for job based access, for example admin, manager, viewer
+* Simple
+* Easy to explain and manage
 
-**Cons:**
+**Cons**
 
-* Can lead to role explosion if you try to encode every business nuance into roles
-* Not expressive enough alone for ownership rules such as "user can only see their own tasks"
-
-
+* Role explosion
+* Poor fit for ownership and context rules
 
 ---
 
-### 2. Permission based access (PBAC)
+### 2. PBAC – Permission Based Access Control
 
-**Idea:** Users or roles are linked directly to fine grained permissions, not just coarse roles.
+**Idea:** Access is controlled by fine-grained permissions, often carried as claims.
 
-Example structure:
+**Examples**
 
-* Permissions: `TaskReadOwn`, `TaskReadAll`, `TaskDelete`, `ReportExport`
-* Roles are bundles of permissions, or you assign permissions directly as claims to users
+* Permissions: `Task.Read`, `Task.Delete`, `Report.Export`
+* Roles become bundles of permissions
 
-**Pros:**
+**Pros**
 
-* More expressive than pure RBAC
-* Easier to avoid role explosion if you treat roles as small bundles
+* More expressive than RBAC
+* Reduces role explosion
 
-**Cons:**
+**Cons**
 
-* More complex to design
-* You must maintain a clear permission catalog
-
+* Requires a clear permission catalog
 
 ---
 
-### 3. ABAC - Attribute Based Access Control
+### 3. ABAC – Attribute Based Access Control
 
-**Idea:** Decisions are based on attributes of user, resource, and environment.
+**Idea:** Decisions depend on attributes of user, resource, and environment.
 
-Examples of attributes:
+**Examples**
 
-* User: department, country, clearance level
-* Resource: classification, owner department
-* Environment: time of day, client IP, risk score
+* User: `department`, `tenantId`, `clearance`
+* Resource: `ownerTenant`, `classification`
+* Environment: `time`, `ip`, `riskScore`
 
-Policies look like:
-
-* "Allow access if `user.department == resource.department` and `resource.classification <= user.clearance`"
-
-**Pros:**
+**Pros**
 
 * Very expressive
-* Useful in large organizations and multi tenant or regulated systems
+* Good for multi-tenant and regulated systems
 
-**Cons:**
+**Cons**
 
-* More difficult to reason about and test
-* Needs a policy engine and good tooling
+* Harder to reason about
+* Needs discipline and tooling
 
 ---
 
+### 4. ReBAC – Relationship Based Access Control
 
-### 4. ReBAC - Relationship Based Access Control
+**Idea:** Decisions are based on relationships between entities.
 
-**Idea:** Decisions are based on relationships like "owner of", "member of group", "manager of".
+**Examples**
 
-Examples:
+* Owner of resource
+* Member of a group
+* Manager of another user
 
-* "User can edit a document if user is the owner or is a member of a group that has edit rights on that document."
-* Used in social networks, GitHub style orgs and repos
+**Pros**
 
-**Pros:**
+* Models real-world collaboration well
+* Natural fit for ownership rules
 
-* Models real world collaboration nicely
-* Fits graph data and microservices well
+**Cons**
 
-**Cons:**
+* Requires resource-aware checks
+* More complex than static roles
 
-* Implementation is more complex, needs good modeling of relationships
-* Harder to implement only with static roles
+---
+
+## Policy-based authorization (ASP.NET Core mechanism)
+
+**Important:**
+Policy-based authorization is **not a separate model**.
+It is the **framework mechanism** ASP.NET Core provides to implement **RBAC, PBAC, ABAC, and ReBAC** in a unified way.
+
+### What a policy can enforce
+
+* Roles (`RequireRole`)
+* Permissions (`RequireClaim`)
+* Attributes (custom logic)
+* Relationships and ownership (resource-based handlers)
+
+### Why policies matter
+
+* Centralized authorization logic
+* Composable rules
+* Testable and explicit
+* Works consistently across controllers, minimal APIs, and services
+
+---
+
+## Mapping models to policies
+
+| Model | How it’s implemented                          |
+| ----- | --------------------------------------------- |
+| RBAC  | `RequireRole("Admin")`                        |
+| PBAC  | `RequireClaim("permission", "Task.Delete")`   |
+| ABAC  | Custom requirement checking claims/attributes |
+| ReBAC | Resource-based authorization handlers         |
 
 ---
 
 ## Design best practices
 
-* Start with RBAC plus ownership checks, do not over engineer on day one
-* Avoid role explosion, keep a small role set and add permissions or attributes when needed
-* Centralize role and permission names in constants or enums
-* Deny by default, explicitly allow required operations
-* Write tests for "allowed" and "forbidden" cases, especially for ownership
+* Start with **RBAC + ownership checks**
+* Treat **roles as coarse**, permissions as fine-grained
+* Prefer **resource-based authorization** for ownership
+* Centralize policy and permission names
+* Deny by default, allow explicitly
+* Avoid leaking authorization info accidentally
+* Unit test authorization handlers
 
 ---
 
-
 ## Samples
 
-### 1. Allow delete only to admins or the user who created the task
+### 1. Admin or owner can delete a task
 
-(RBAC and ReBAC - admin role or owner)
+(RBAC + ReBAC via policy)
 
-Assume you have `TaskEntity` with `CreatedBy`.
-
-**Policy setup** in `Program.cs`:
+**Requirement & handler**
 
 ```csharp
 public class CanDeleteTaskRequirement : IAuthorizationRequirement
@@ -125,197 +146,110 @@ public class CanDeleteTaskRequirement : IAuthorizationRequirement
 }
 
 public class CanDeleteTaskHandler
-   : AuthorizationHandler<CanDeleteTaskRequirement, TaskEntity>
+    : AuthorizationHandler<CanDeleteTaskRequirement, TaskEntity>
 {
-   protected override Task HandleRequirementAsync(
-      AuthorizationHandlerContext context,
-      CanDeleteTaskRequirement requirement,
-      TaskEntity resource)
-   {
-      var userName = context.User.Identity?.Name;
-      var isAdmin = context.User.IsInRole("Admin");
-      var isOwner = userName != null && userName == resource.CreatedBy;
+    protected override Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        CanDeleteTaskRequirement requirement,
+        TaskEntity resource)
+    {
+        var userName = context.User.Identity?.Name;
+        var isAdmin = context.User.IsInRole("Admin");
+        var isOwner = userName != null && userName == resource.CreatedBy;
 
-      if (isAdmin || isOwner)
-      {
-         context.Succeed(requirement);
-      }
+        if (isAdmin || isOwner)
+        {
+            context.Succeed(requirement);
+        }
 
-      return Task.CompletedTask;
-   }
+        return Task.CompletedTask;
+    }
 }
 ```
 
-Register:
+**Registration**
 
 ```csharp
 builder.Services.AddAuthorization(options =>
 {
-   options.AddPolicy("CanDeleteTask", policy =>
-      policy.Requirements.Add(new CanDeleteTaskRequirement()));
+    options.AddPolicy("Tasks.Delete", policy =>
+        policy.Requirements.Add(new CanDeleteTaskRequirement()));
 });
 
 builder.Services.AddSingleton<IAuthorizationHandler, CanDeleteTaskHandler>();
 ```
 
-**Use in controller**:
+**Usage**
 
 ```csharp
-[Authorize]
-[Route("api/tasks")]
-[ApiController]
-public class TasksController : ControllerBase
+var result = await m_auth.AuthorizeAsync(User, task, "Tasks.Delete");
+if (!result.Succeeded)
 {
-   private readonly ITaskService m_tasks;
-   private readonly IAuthorizationService m_auth;
-
-   public TasksController(ITaskService tasks, IAuthorizationService auth)
-   {
-      m_tasks = tasks;
-      m_auth = auth;
-   }
-
-   [HttpDelete("{id:long}")]
-   public async Task<IActionResult> Delete(long id)
-   {
-      var task = await m_tasks.GetByIdAsync(id);
-      if (task == null)
-      {
-         return NotFound();
-      }
-
-      var result = await m_auth.AuthorizeAsync(User, task, "CanDeleteTask");
-      if (!result.Succeeded)
-      {
-         return Forbid();
-      }
-
-      await m_tasks.DeleteAsync(id);
-      return NoContent();
-   }
+    return Forbid();
 }
 ```
-If delete is “admins only”, the attribute is enough:
+
+---
+
+### 2. Admin-only delete (pure RBAC / PBAC)
 
 ```csharp
-[Authorize(Policy = "TaskDelete")] // e.g. RequireRole("Admin") or RequireClaim("permission", "TaskDelete")
+options.AddPolicy("Tasks.Delete",
+    policy => policy.RequireRole("Admin"));
+```
+
+```csharp
+[Authorize(Policy = "Tasks.Delete")]
 [HttpDelete("{id:long}")]
 public async Task<IActionResult> Delete(long id)
 {
-   var task = await m_tasks.GetByIdAsync(id);
-   if (task == null) return NotFound();
-
-   await m_tasks.DeleteAsync(id);
-   return NoContent();
-}
-
-```
-and in Program.cs
-
-```csharp
-options.AddPolicy("TaskDelete",
-   policy => policy.RequireRole("Admin"));
-
-```
-
----
-
-### 2. Profile endpoint where each user sees their own data
-
-(ReBAC - user can view their own profile)
-
-Using ASP.NET Core Identity with `AppUser`.
-
-```csharp
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-
-[Authorize]
-[Route("profile")]
-public class ProfileController : Controller
-{
-   private readonly UserManager<AppUser> m_userManager;
-
-   public ProfileController(UserManager<AppUser> userManager)
-   {
-      m_userManager = userManager;
-   }
-
-   [HttpGet("")]
-   public async Task<IActionResult> ShowProfile()
-   {
-      var userName = User.Identity?.Name
-         ?? throw new InvalidOperationException("User not logged in");
-
-      var user = await m_userManager.FindByNameAsync(userName)
-         ?? throw new InvalidOperationException("User not found");
-
-     
-      // For API style:
-      return Ok(new
-      {
-         user.UserName,
-         user.Email
-         // any other safe fields
-      });
-   }
+    await m_tasks.DeleteAsync(id);
+    return NoContent();
 }
 ```
 
 ---
 
-### 3. Debug endpoint to inspect the authentication object
+### 3. User can see only their own profile
 
-Equivalent of the Spring `/debug` endpoint.
+(ReBAC via identity)
 
 ```csharp
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System.Linq;
-using System.Security.Claims;
-
 [Authorize]
-[Route("profile")]
-public class ProfileController : Controller
+[HttpGet("profile")]
+public async Task<IActionResult> Profile()
 {
-   // other actions...
+    var userName = User.Identity?.Name
+        ?? throw new InvalidOperationException();
 
-   [HttpGet("debug")]
-   public IActionResult DebugAuth()
-   {
-      var auth = HttpContext.User;
-      Console.WriteLine("=== AUTHENTICATION DEBUG ===");
+    var user = await m_userManager.FindByNameAsync(userName)
+        ?? throw new InvalidOperationException();
 
-      // 1. Principal
-      Console.WriteLine($"Principal type: {auth.GetType().Name}");
-      Console.WriteLine($"Principal: {auth}");
+    return Ok(new
+    {
+        user.UserName,
+        user.Email
+    });
+}
+```
 
-      // 2. Claims (roles, permissions, etc.)
-      var authoritiesString = string.Join(", ",
-         auth.Claims.Select(c => $"{c.Type}={c.Value}"));
-      Console.WriteLine($"Claims: {authoritiesString}");
+---
 
-      // 3. Identity details
-      var identity = auth.Identity;
-      var isAuthenticated = identity?.IsAuthenticated == true;
-      var name = identity?.Name ?? "(null)";
+### 4. Debug endpoint to inspect authorization state
 
-      Console.WriteLine($"Is Authenticated: {isAuthenticated}");
-      Console.WriteLine($"Name: {name}");
+```csharp
+[Authorize]
+[HttpGet("profile/debug")]
+public IActionResult DebugAuth()
+{
+    var auth = HttpContext.User;
 
-      // 4. Build a simple view model or JSON
-      var model = new
-      {
-         PrincipalType = auth.GetType().Name,
-         Claims = authoritiesString,
-         IsAuthenticated = isAuthenticated,
-         Name = name
-      };
-
-      // For MVC view: return View(model);
-      return Ok(model);
-   }
+    return Ok(new
+    {
+        IsAuthenticated = auth.Identity?.IsAuthenticated,
+        Name = auth.Identity?.Name,
+        Claims = auth.Claims.Select(c => $"{c.Type}={c.Value}")
+    });
 }
 ```
 
